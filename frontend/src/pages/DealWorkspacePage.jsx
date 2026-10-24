@@ -723,7 +723,7 @@ export default function DealWorkspacePage() {
                       className="px-4 py-2 bg-navy-900 hover:bg-navy-800 text-white text-xs font-semibold rounded-md shadow-sm transition-colors flex items-center space-x-1.5 disabled:opacity-50"
                     >
                       <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-                      <span>{analyzing ? 'Analyzing with Gemini...' : 'Analyze with AI (Gemini)'}</span>
+                      <span>{analyzing ? 'Analyzing with AI...' : 'Analyze with AI'}</span>
                     </button>
                   )}
                 </div>
@@ -736,15 +736,25 @@ export default function DealWorkspacePage() {
             </div>
 
             {aiErrorMsg && (
-              <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-800 flex items-start space-x-2">
-                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-semibold">AI Analysis Notice</p>
-                  <p className="mt-0.5">{aiErrorMsg}</p>
-                  <p className="mt-1 text-[11px] text-amber-700">
-                    You can switch to the <b>Extracted Terms & Clarifications</b> tab to review or manually input agreement terms.
-                  </p>
+              <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-800 flex items-start justify-between gap-2">
+                <div className="flex items-start space-x-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+                  <div>
+                    <p className="font-semibold">AI Analysis Notice</p>
+                    <p className="mt-0.5">{aiErrorMsg}</p>
+                    <p className="mt-1 text-[11px] text-amber-700">
+                      You can switch to the <b>Extracted Terms & Clarifications</b> tab to review or manually input agreement terms.
+                    </p>
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setAiErrorMsg('')}
+                  title="Dismiss notice"
+                  className="text-amber-500 hover:text-amber-700 p-1 shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
             )}
           </div>

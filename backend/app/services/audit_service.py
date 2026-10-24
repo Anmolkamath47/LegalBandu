@@ -56,22 +56,23 @@ def record_activity(
     previous_hash = latest_log.event_hash if latest_log else GENESIS_HASH
     now = datetime.now(timezone.utc)
     timestamp_str = canonical_timestamp_str(now)
-    data_json = canonical_json(event_data)
+    clean_event_data = json.loads(json.dumps(event_data, default=str)) if event_data else {}
+    data_json = canonical_json(clean_event_data)
 
     event_hash = compute_event_hash(
         previous_hash=previous_hash,
-        deal_id=deal_id,
-        actor_id=actor_id,
+        deal_id=str(deal_id),
+        actor_id=str(actor_id) if actor_id else None,
         event_type=event_type,
         canonical_data=data_json,
         timestamp_str=timestamp_str,
     )
 
     log_entry = ActivityLog(
-        deal_id=deal_id,
-        actor_id=actor_id,
+        deal_id=str(deal_id),
+        actor_id=str(actor_id) if actor_id else None,
         event_type=event_type,
-        event_data=event_data,
+        event_data=clean_event_data,
         previous_hash=previous_hash,
         event_hash=event_hash,
         created_at=now,

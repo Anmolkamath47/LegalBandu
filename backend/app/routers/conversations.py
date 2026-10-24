@@ -1,4 +1,5 @@
 import re
+import json
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from sqlalchemy.orm import Session
@@ -291,11 +292,12 @@ def run_deal_analysis(
         )
 
     # Store analysis record
+    clean_analysis = json.loads(json.dumps(analysis_data, default=str))
     deal_analysis = DealAnalysis(
-        deal_id=deal.id,
-        conversation_id=conversations[-1].id if conversations else None,
-        analysis_json=analysis_data,
-        created_by=current_user.id,
+        deal_id=str(deal.id),
+        conversation_id=str(conversations[-1].id) if conversations else None,
+        analysis_json=clean_analysis,
+        created_by=str(current_user.id),
     )
     db.add(deal_analysis)
     db.commit()
@@ -304,13 +306,13 @@ def run_deal_analysis(
     # Record tamper-evident audit event
     record_activity(
         db=db,
-        deal_id=deal.id,
-        actor_id=current_user.id,
+        deal_id=str(deal.id),
+        actor_id=str(current_user.id),
         event_type="ai_analysis_performed",
         event_data={
-            "analysis_id": deal_analysis.id,
-            "unresolved_count": len(analysis_data.get("unresolved_terms", [])),
-            "conflict_count": len(analysis_data.get("contradictory_statements", [])),
+            "analysis_id": str(deal_analysis.id),
+            "unresolved_count": len(clean_analysis.get("unresolved_terms", [])),
+            "conflict_count": len(clean_analysis.get("contradictory_statements", [])),
         },
     )
 

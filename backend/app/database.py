@@ -60,10 +60,16 @@ def normalize_database_url(url_str: str) -> str:
 
 DATABASE_URL = normalize_database_url(settings.DATABASE_URL)
 
+def json_serializer_with_uuid(obj):
+    import json
+    return json.dumps(obj, default=str)
+
+
 if DATABASE_URL:
     engine = create_engine(
         DATABASE_URL,
         pool_pre_ping=True,
+        json_serializer=json_serializer_with_uuid,
     )
 else:
     # Local fallback for development and testing
@@ -71,6 +77,7 @@ else:
     engine = create_engine(
         f"sqlite:///{os.path.abspath(LOCAL_DB_PATH)}",
         connect_args={"check_same_thread": False},
+        json_serializer=json_serializer_with_uuid,
     )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
