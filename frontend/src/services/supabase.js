@@ -9,7 +9,7 @@ export const isSupabaseConfigured = Boolean(
   !supabaseUrl.includes('your-project-ref')
 );
 
-// Fallback dummy client for when Supabase is not yet configured in .env
+// Supabase client instance
 let clientInstance = null;
 
 if (isSupabaseConfigured) {
