@@ -16,12 +16,18 @@ export function AuthProvider({ children }) {
     setAuthTokenGetter(() => token);
   }, [token]);
 
+  // Purge legacy dev tokens
+  useEffect(() => {
+    localStorage.removeItem('lb_dev_token');
+    localStorage.removeItem('lb_dev_user');
+  }, []);
+
   // Load session on startup
   useEffect(() => {
     async function initSession() {
       // 1. First check persisted auth token in localStorage
-      const savedAuthToken = localStorage.getItem('lb_auth_token') || localStorage.getItem('lb_dev_token');
-      const savedAuthUser = localStorage.getItem('lb_auth_user') || localStorage.getItem('lb_dev_user');
+      const savedAuthToken = localStorage.getItem('lb_auth_token');
+      const savedAuthUser = localStorage.getItem('lb_auth_user');
       if (savedAuthToken && savedAuthUser) {
         try {
           const parsedUser = JSON.parse(savedAuthUser);
@@ -78,9 +84,14 @@ export function AuthProvider({ children }) {
     try {
       setAuthTokenGetter(() => accessToken);
       const me = await api.getMe();
-      setProfile(me);
+      if (me) {
+        setProfile(me);
+      }
     } catch (err) {
       console.warn('Could not load user profile:', err);
+      if (err.status === 401) {
+        signOut();
+      }
     }
   }
 

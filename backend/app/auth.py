@@ -113,24 +113,31 @@ def get_current_user(
             detail="Token missing user identity.",
         )
 
-    # Ensure profile exists in database
-    profile = db.query(Profile).filter(Profile.id == user_id).first()
-    if not profile:
-        profile = Profile(
-            id=user_id,
-            full_name=full_name or email.split("@")[0] if email else "User",
-        )
-        db.add(profile)
-        db.commit()
-        db.refresh(profile)
-    elif full_name and not profile.full_name:
-        profile.full_name = full_name
-        db.commit()
+    # Ensure profile exists in database safely without crashing on FK violations
+    profile_name = full_name
+    try:
+        profile = db.query(Profile).filter(Profile.id == user_id).first()
+        if not profile:
+            profile = Profile(
+                id=user_id,
+                full_name=full_name or (email.split("@")[0] if email else "User"),
+            )
+            db.add(profile)
+            db.commit()
+            db.refresh(profile)
+        elif full_name and not profile.full_name:
+            profile.full_name = full_name
+            db.commit()
+        if profile and profile.full_name:
+            profile_name = profile.full_name
+    except Exception as pe:
+        db.rollback()
+        logger.info(f"Profile synchronization note (user {user_id}): {pe}")
 
     return AuthenticatedUser(
         id=user_id,
         email=email,
-        full_name=profile.full_name or full_name,
+        full_name=profile_name or (email.split("@")[0] if email else "User"),
     )
 
 
