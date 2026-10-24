@@ -26,9 +26,19 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin', onS
         if (!fullName.trim()) {
           throw new Error('Please enter your full name.');
         }
-        await signUp(email.trim(), password, fullName.trim());
-        onSuccess && onSuccess();
-        onClose();
+        const res = await signUp(email.trim(), password, fullName.trim());
+        if (res?.session || res?.user?.identities?.length > 0) {
+          if (res?.session) {
+            onSuccess && onSuccess();
+            onClose();
+          } else {
+            setSuccessMsg('Account created! Please check your email inbox to confirm, or sign in if confirmation is disabled in Supabase.');
+            setMode('signin');
+          }
+        } else {
+          onSuccess && onSuccess();
+          onClose();
+        }
       } else if (mode === 'signin') {
         await signIn(email.trim(), password);
         onSuccess && onSuccess();
@@ -38,7 +48,14 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin', onS
         setSuccessMsg('Password reset link sent to your email.');
       }
     } catch (err) {
-      setErrorMsg(err.message || 'Authentication failed. Please verify your credentials.');
+      const rawMsg = err.message || 'Authentication failed. Please verify your credentials.';
+      if (rawMsg.toLowerCase().includes('invalid login credentials')) {
+        setErrorMsg('Invalid login credentials. If you haven\'t registered this email yet, click "Create one now" below.');
+      } else if (rawMsg.toLowerCase().includes('email not confirmed')) {
+        setErrorMsg('Your email is not confirmed yet. Please click the confirmation link in your email inbox, or turn off "Confirm email" in Supabase Auth settings.');
+      } else {
+        setErrorMsg(rawMsg);
+      }
     } finally {
       setSubmitting(false);
     }
