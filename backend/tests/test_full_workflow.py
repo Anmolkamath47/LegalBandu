@@ -47,14 +47,19 @@ def client(db_session):
     app.dependency_overrides.clear()
 
 
+from app.config import settings
+
+
 def make_user_token(user_id: str, email: str, name: str) -> str:
     """Creates a mock JWT token for testing verified user identities."""
     payload = {
         "sub": user_id,
         "email": email,
+        "aud": "authenticated",
         "user_metadata": {"full_name": name, "email": email},
     }
-    return jwt.encode(payload, "super-secret-key-that-is-at-least-32-bytes-long!", algorithm="HS256")
+    secret = settings.SUPABASE_JWT_SECRET or "super-secret-key-that-is-at-least-32-bytes-long!"
+    return jwt.encode(payload, secret, algorithm="HS256")
 
 
 

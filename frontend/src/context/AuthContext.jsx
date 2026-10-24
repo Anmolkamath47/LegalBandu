@@ -89,7 +89,7 @@ function base64UrlEncode(str) {
     setAuthError(null);
     if (!isSupabaseConfigured || !supabase) {
       // Local dev mode fallback if Supabase credentials are not in .env
-      const devUserId = '11111111-1111-1111-1111-' + Math.random().toString(36).substring(2, 14);
+      const devUserId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : '11111111-1111-4111-8111-' + Array.from({length: 12}, () => Math.floor(Math.random()*16).toString(16)).join('');
       const devPayload = {
         sub: devUserId,
         email,
@@ -137,7 +137,7 @@ function base64UrlEncode(str) {
     setAuthError(null);
     if (!isSupabaseConfigured || !supabase) {
       // Local dev mode fallback
-      const devUserId = '11111111-1111-1111-1111-' + Math.random().toString(36).substring(2, 14);
+      const devUserId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : '11111111-1111-4111-8111-' + Array.from({length: 12}, () => Math.floor(Math.random()*16).toString(16)).join('');
       const fullName = email.split('@')[0];
       const devPayload = {
         sub: devUserId,
