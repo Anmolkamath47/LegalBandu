@@ -13,7 +13,8 @@ import {
   ChevronRight, 
   Users, 
   RotateCcw,
-  Sparkles
+  Sparkles,
+  Trash2
 } from 'lucide-react';
 
 export default function DashboardPage({ onOpenNewDeal }) {
@@ -32,6 +33,7 @@ export default function DashboardPage({ onOpenNewDeal }) {
   const [statusFilter, setStatusFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
+  const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -61,6 +63,22 @@ export default function DashboardPage({ onOpenNewDeal }) {
   function handleSearchSubmit(e) {
     e.preventDefault();
     loadDashboardData();
+  }
+
+  async function handleDeleteDeal(dealId, dealTitle, e) {
+    e.stopPropagation();
+    if (!window.confirm(`Are you sure you want to delete "${dealTitle}"? This will permanently remove this deal room and all related data.`)) {
+      return;
+    }
+    try {
+      setDeletingId(dealId);
+      await api.deleteDeal(dealId);
+      await loadDashboardData();
+    } catch (err) {
+      alert(err.message || 'Failed to delete deal');
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   const displayName = profile?.full_name || user?.full_name || user?.email?.split('@')[0] || 'User';
@@ -281,7 +299,7 @@ export default function DashboardPage({ onOpenNewDeal }) {
                     </div>
                   </div>
 
-                  {/* Next Required Action Badge */}
+                  {/* Next Required Action Badge & Actions */}
                   <div className="flex items-center space-x-3 shrink-0 w-full sm:w-auto justify-between sm:justify-end">
                     <div className="text-right">
                       <span className="text-[10px] font-medium text-slate-400 block uppercase tracking-wider">
@@ -291,6 +309,18 @@ export default function DashboardPage({ onOpenNewDeal }) {
                         {deal.next_action}
                       </span>
                     </div>
+
+                    {/* Delete Deal Action */}
+                    <button
+                      id={`btn-delete-deal-${deal.id}`}
+                      title="Delete deal room"
+                      disabled={deletingId === deal.id}
+                      onClick={(e) => handleDeleteDeal(deal.id, deal.title, e)}
+                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+
                     <ChevronRight className="w-4 h-4 text-slate-400" />
                   </div>
                 </div>

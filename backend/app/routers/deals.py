@@ -311,3 +311,30 @@ def update_deal(
         )
 
     return build_deal_out(deal, current_user.id, db)
+
+
+@router.delete("/{deal_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_deal(
+    deal_id: str,
+    current_user: AuthenticatedUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Deletes a deal room. Only the creator of the deal is authorized to delete it.
+    Cascades and cleans up all participants, conversations, and records.
+    """
+    deal = db.query(Deal).filter(Deal.id == deal_id).first()
+    if not deal:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Deal room not found.",
+        )
+    if str(deal.creator_id) != str(current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the deal creator can delete this deal room.",
+        )
+    db.delete(deal)
+    db.commit()
+    return None
+

@@ -1,9 +1,20 @@
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
 
-let getAuthToken = () => null;
+let customTokenGetter = null;
 
 export const setAuthTokenGetter = (getterFn) => {
-  getAuthToken = getterFn;
+  customTokenGetter = getterFn;
+};
+
+const getAuthToken = () => {
+  if (customTokenGetter) {
+    const t = customTokenGetter();
+    if (t) return t;
+  }
+  if (typeof window !== 'undefined' && window.localStorage) {
+    return localStorage.getItem('lb_auth_token') || null;
+  }
+  return null;
 };
 
 async function request(path, options = {}) {
@@ -104,6 +115,10 @@ export const api = {
     method: 'PATCH',
     body: JSON.stringify(payload),
   }),
+  deleteDeal: (dealId) => request(`/deals/${dealId}`, {
+    method: 'DELETE',
+  }),
+
 
   // Invitations
   createInvitation: (dealId, payload) => request(`/deals/${dealId}/invitations`, {
