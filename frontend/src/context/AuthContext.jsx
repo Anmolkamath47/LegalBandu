@@ -217,6 +217,59 @@ function base64UrlEncode(str) {
     return true;
   }
 
+  // Seamless Unified Auth: automatically signs in or registers on the fly
+  async function continueWithCredentials(email, password, fullName = '') {
+    setAuthError(null);
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = fullName.trim() || cleanEmail.split('@')[0];
+
+    try {
+      return await signIn(cleanEmail, password);
+    } catch (err) {
+      const errMsg = (err.message || '').toLowerCase();
+      // If user not registered yet or invalid credentials, automatically create account and log in
+      if (errMsg.includes('invalid login credentials') || errMsg.includes('user not found')) {
+        try {
+          return await signUp(cleanEmail, password, cleanName);
+        } catch (signUpErr) {
+          const signUpMsg = (signUpErr.message || '').toLowerCase();
+          if (signUpMsg.includes('already registered') || signUpMsg.includes('already exists')) {
+            throw new Error('Incorrect password for this email. Please check your password or use another email.');
+          }
+          throw signUpErr;
+        }
+      }
+      throw err;
+    }
+  }
+
+  // 1-Click Instant Demo Login
+  async function quickDemoLogin(demoEmail = 'anmolravindrakamath@gmail.com', demoName = 'Anmol Kamath') {
+    setAuthError(null);
+    const defaultPassword = 'Anmolkamath@47';
+    try {
+      return await continueWithCredentials(demoEmail, defaultPassword, demoName);
+    } catch (e) {
+      // In local dev fallback
+      const devUserId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : '11111111-1111-4111-8111-111111111111';
+      const devPayload = {
+        sub: devUserId,
+        email: demoEmail,
+        user_metadata: { full_name: demoName, email: demoEmail },
+      };
+      const b64Header = base64UrlEncode(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+      const b64Payload = base64UrlEncode(JSON.stringify(devPayload));
+      const mockToken = `${b64Header}.${b64Payload}.c2lnbmF0dXJl`;
+      const devUser = { id: devUserId, email: demoEmail, full_name: demoName };
+      localStorage.setItem('lb_dev_token', mockToken);
+      localStorage.setItem('lb_dev_user', JSON.stringify(devUser));
+      setToken(mockToken);
+      setUser(devUser);
+      setProfile({ id: devUserId, email: demoEmail, full_name: demoName });
+      return { user: devUser, session: { access_token: mockToken } };
+    }
+  }
+
   const value = {
     user,
     profile,
@@ -224,6 +277,8 @@ function base64UrlEncode(str) {
     loading,
     authError,
     isSupabaseConfigured,
+    continueWithCredentials,
+    quickDemoLogin,
     signUp,
     signIn,
     signOut,

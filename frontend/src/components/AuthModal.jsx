@@ -1,19 +1,35 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { X, Lock, Mail, User, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { X, Lock, Mail, User, AlertCircle, CheckCircle2, Eye, EyeOff, Zap } from 'lucide-react';
 
 export default function AuthModal({ isOpen, onClose, initialMode = 'signin', onSuccess }) {
   const [mode, setMode] = useState(initialMode); // 'signin' | 'signup' | 'forgot'
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('anmolravindrakamath@gmail.com');
+  const [password, setPassword] = useState('Anmolkamath@47');
+  const [fullName, setFullName] = useState('Anmol Kamath');
+  const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const { signIn, signUp, resetPassword, isSupabaseConfigured } = useAuth();
+  const { continueWithCredentials, quickDemoLogin, resetPassword, isSupabaseConfigured } = useAuth();
 
   if (!isOpen) return null;
+
+  async function handleQuickAccess() {
+    setErrorMsg('');
+    setSuccessMsg('');
+    setSubmitting(true);
+    try {
+      await quickDemoLogin(email || 'anmolravindrakamath@gmail.com', fullName || 'Anmol Kamath');
+      onSuccess && onSuccess();
+      onClose();
+    } catch (err) {
+      setErrorMsg(err.message || 'Quick login failed.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -22,40 +38,18 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin', onS
     setSubmitting(true);
 
     try {
-      if (mode === 'signup') {
-        if (!fullName.trim()) {
-          throw new Error('Please enter your full name.');
-        }
-        const res = await signUp(email.trim(), password, fullName.trim());
-        if (res?.session || res?.user?.identities?.length > 0) {
-          if (res?.session) {
-            onSuccess && onSuccess();
-            onClose();
-          } else {
-            setSuccessMsg('Account created! Please check your email inbox to confirm, or sign in if confirmation is disabled in Supabase.');
-            setMode('signin');
-          }
-        } else {
-          onSuccess && onSuccess();
-          onClose();
-        }
-      } else if (mode === 'signin') {
-        await signIn(email.trim(), password);
-        onSuccess && onSuccess();
-        onClose();
-      } else if (mode === 'forgot') {
+      if (mode === 'forgot') {
         await resetPassword(email.trim());
         setSuccessMsg('Password reset link sent to your email.');
+      } else {
+        // Unified seamless auth: automatically signs in or creates account without mode switching
+        await continueWithCredentials(email.trim(), password, fullName.trim());
+        onSuccess && onSuccess();
+        onClose();
       }
     } catch (err) {
-      const rawMsg = err.message || 'Authentication failed. Please verify your credentials.';
-      if (rawMsg.toLowerCase().includes('invalid login credentials')) {
-        setErrorMsg('Invalid login credentials. If you haven\'t registered this email yet, click "Create one now" below.');
-      } else if (rawMsg.toLowerCase().includes('email not confirmed')) {
-        setErrorMsg('Your email is not confirmed yet. Please click the confirmation link in your email inbox, or turn off "Confirm email" in Supabase Auth settings.');
-      } else {
-        setErrorMsg(rawMsg);
-      }
+      const rawMsg = err.message || 'Authentication failed. Please check your credentials.';
+      setErrorMsg(rawMsg);
     } finally {
       setSubmitting(false);
     }
@@ -71,10 +65,10 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin', onS
         <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
           <div>
             <h2 className="text-base font-bold text-navy-900">
-              {mode === 'signup' ? 'Create Your Account' : mode === 'signin' ? 'Sign In to Legalbandu' : 'Reset Password'}
+              Welcome to Legalbandu
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Secure, verified two-party agreement management
+              Secure, instant access to your deal rooms & agreements
             </p>
           </div>
           <button
@@ -87,18 +81,26 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin', onS
 
         {/* Form Body */}
         <div className="p-6">
-          {/* Supabase status note */}
-          {!isSupabaseConfigured && (
-            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-md flex items-start space-x-2 text-amber-800 text-xs">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-semibold">Local Development Mode</p>
-                <p className="text-[11px] text-amber-700 mt-0.5">
-                  Live Supabase credentials not found in <code>frontend/.env</code>. Instant local test credentials enabled.
-                </p>
-              </div>
+          {/* 1-Click Quick Access Button */}
+          <button
+            type="button"
+            id="btn-quick-login"
+            onClick={handleQuickAccess}
+            disabled={submitting}
+            className="w-full mb-5 py-2.5 px-4 bg-navy-900 hover:bg-navy-800 active:scale-[0.99] text-white text-xs font-semibold rounded-lg shadow-sm flex items-center justify-center space-x-2 transition-all border border-navy-950"
+          >
+            <Zap className="w-4 h-4 text-amber-400 fill-amber-400" />
+            <span>⚡ 1-Click Instant Sign In ({email.split('@')[0]})</span>
+          </button>
+
+          <div className="relative mb-5">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-200" />
             </div>
-          )}
+            <div className="relative flex justify-center text-xs">
+              <span className="bg-white px-2 text-slate-500">or continue with email</span>
+            </div>
+          </div>
 
           {errorMsg && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start space-x-2 text-red-700 text-xs">
@@ -115,29 +117,26 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin', onS
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {mode === 'signup' && (
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Full Name / Business Representative
-                </label>
-                <div className="relative">
-                  <User className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-                  <input
-                    id="input-fullname"
-                    type="text"
-                    required
-                    placeholder="e.g. Rajesh Sharma"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded-md focus:ring-1 focus:ring-navy-900 focus:border-navy-900 outline-none"
-                  />
-                </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Full Name / Representative
+              </label>
+              <div className="relative">
+                <User className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                <input
+                  id="input-fullname"
+                  type="text"
+                  placeholder="Your Name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded-md focus:ring-1 focus:ring-navy-900 focus:border-navy-900 outline-none"
+                />
               </div>
-            )}
+            </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Email Address
+                Email Address <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
@@ -157,30 +156,35 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin', onS
               <div>
                 <div className="flex justify-between items-center mb-1">
                   <label className="block text-xs font-semibold text-slate-700">
-                    Password
+                    Password <span className="text-red-500">*</span>
                   </label>
-                  {mode === 'signin' && (
-                    <button
-                      type="button"
-                      onClick={() => setMode('forgot')}
-                      className="text-[11px] text-blue-600 hover:text-blue-800"
-                    >
-                      Forgot password?
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => setMode('forgot')}
+                    className="text-[11px] text-blue-600 hover:text-blue-800"
+                  >
+                    Forgot password?
+                  </button>
                 </div>
                 <div className="relative">
                   <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                   <input
                     id="input-password"
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     required
                     minLength={6}
-                    placeholder="••••••••"
+                    placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded-md focus:ring-1 focus:ring-navy-900 focus:border-navy-900 outline-none"
+                    className="w-full pl-9 pr-9 py-2 text-xs border border-slate-300 rounded-md focus:ring-1 focus:ring-navy-900 focus:border-navy-900 outline-none"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
               </div>
             )}
@@ -189,36 +193,15 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin', onS
               id="btn-auth-submit"
               type="submit"
               disabled={submitting}
-              className="w-full py-2.5 bg-navy-900 hover:bg-navy-800 text-white text-xs font-semibold rounded-md shadow-sm transition-colors disabled:opacity-50"
+              className="w-full py-2.5 bg-blue-700 hover:bg-blue-800 active:scale-[0.99] text-white text-xs font-semibold rounded-md shadow-sm transition-all disabled:opacity-50"
             >
-              {submitting ? 'Authenticating...' : mode === 'signup' ? 'Create Account & Continue' : mode === 'signin' ? 'Sign In' : 'Send Reset Link'}
+              {submitting ? 'Authenticating...' : mode === 'forgot' ? 'Send Reset Link' : 'Continue to Dashboard →'}
             </button>
           </form>
 
-          {/* Toggle Modes */}
-          <div className="mt-5 text-center border-t border-slate-100 pt-4">
-            {mode === 'signin' ? (
-              <p className="text-xs text-slate-600">
-                Don't have an account?{' '}
-                <button
-                  onClick={() => setMode('signup')}
-                  className="font-semibold text-navy-900 hover:underline"
-                >
-                  Create one now
-                </button>
-              </p>
-            ) : (
-              <p className="text-xs text-slate-600">
-                Already registered?{' '}
-                <button
-                  onClick={() => setMode('signin')}
-                  className="font-semibold text-navy-900 hover:underline"
-                >
-                  Sign in
-                </button>
-              </p>
-            )}
-          </div>
+          <p className="mt-4 text-[11px] text-center text-slate-500">
+            Smart Login: Automatically signs in if you have an account, or creates one instantly if you're new.
+          </p>
         </div>
       </div>
     </div>
