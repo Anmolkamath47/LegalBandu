@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:5173"
     MAX_UPLOAD_SIZE_MB: int = 10
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=(".env", "backend/.env", "../backend/.env"), extra="ignore")
 
 
 settings = Settings()

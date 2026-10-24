@@ -127,6 +127,22 @@ function base64UrlEncode(str) {
       setToken(data.session.access_token);
       setUser(data.user);
       await fetchProfile(data.session.access_token);
+    } else {
+      // Auto-sign in immediately since email is auto-confirmed by database trigger
+      try {
+        const signInRes = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (signInRes.data?.session) {
+          setToken(signInRes.data.session.access_token);
+          setUser(signInRes.data.user);
+          await fetchProfile(signInRes.data.session.access_token);
+          return signInRes.data;
+        }
+      } catch (e) {
+        console.warn('Auto-login attempt after signup:', e);
+      }
     }
 
     return data;
