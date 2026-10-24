@@ -14,7 +14,7 @@ router = APIRouter(prefix="/deals", tags=["Deals"])
 
 
 def build_deal_out(deal: Deal, user_id: str, db: Session) -> DealOut:
-    creator_profile = db.query(Profile).filter(Profile.id == deal.creator_id).first()
+    creator_profile = db.query(Profile).filter(Profile.id == str(deal.creator_id)).first()
     creator_name = creator_profile.full_name if creator_profile else "Creator"
 
     participants = (
@@ -28,13 +28,13 @@ def build_deal_out(deal: Deal, user_id: str, db: Session) -> DealOut:
         p_name = None
         p_email = p.invitation_email
         if p.user_id:
-            prof = db.query(Profile).filter(Profile.id == p.user_id).first()
+            prof = db.query(Profile).filter(Profile.id == str(p.user_id)).first()
             if prof:
                 p_name = prof.full_name
         p_out = ParticipantOut(
-            id=p.id,
-            deal_id=p.deal_id,
-            user_id=p.user_id,
+            id=str(p.id),
+            deal_id=str(p.deal_id),
+            user_id=str(p.user_id) if p.user_id else None,
             role=p.role,
             full_name=p_name,
             email=p_email,
@@ -50,7 +50,7 @@ def build_deal_out(deal: Deal, user_id: str, db: Session) -> DealOut:
     if deal.current_version_id:
         v = (
             db.query(AgreementVersion)
-            .filter(AgreementVersion.id == deal.current_version_id)
+            .filter(AgreementVersion.id == str(deal.current_version_id))
             .first()
         )
         if v:
@@ -72,7 +72,7 @@ def build_deal_out(deal: Deal, user_id: str, db: Session) -> DealOut:
         next_action = "Review & Request Review"
     elif deal.status in ("awaiting_review", "awaiting_counterparty"):
         # Check if this user approved
-        my_part = next((p for p in participants if p.user_id == user_id), None)
+        my_part = next((p for p in participants if str(p.user_id) == str(user_id)), None)
         has_my_approval = False
         if my_part and deal.current_version_id:
             app = (
@@ -96,15 +96,15 @@ def build_deal_out(deal: Deal, user_id: str, db: Session) -> DealOut:
         next_action = "Agreement Mutually Confirmed"
 
     return DealOut(
-        id=deal.id,
-        creator_id=deal.creator_id,
+        id=str(deal.id),
+        creator_id=str(deal.creator_id),
         creator_name=creator_name,
         title=deal.title,
         category=deal.category,
         description=deal.description,
         currency=deal.currency,
         status=deal.status,
-        current_version_id=deal.current_version_id,
+        current_version_id=str(deal.current_version_id) if deal.current_version_id else None,
         current_version_number=current_v_num,
         participants=participant_outs,
         counterparty=counterparty_out,
@@ -112,6 +112,7 @@ def build_deal_out(deal: Deal, user_id: str, db: Session) -> DealOut:
         created_at=deal.created_at,
         updated_at=deal.updated_at,
     )
+
 
 
 @router.post("", response_model=DealOut, status_code=status.HTTP_201_CREATED)

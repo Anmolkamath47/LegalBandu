@@ -1,13 +1,17 @@
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
-from typing import Optional, List, Dict, Any
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, BeforeValidator
+from typing import Optional, List, Dict, Any, Annotated, Union
 from datetime import datetime
+from uuid import UUID
+
+# Robust string ID type that automatically stringifies UUID objects returned by PostgreSQL/SQLAlchemy
+StrId = Annotated[str, BeforeValidator(lambda v: str(v) if v is not None else v)]
 
 
 # ==========================================
 # Profiles & Users
 # ==========================================
 class UserProfile(BaseModel):
-    id: str
+    id: StrId
     email: str
     full_name: str
 
@@ -58,9 +62,9 @@ class DealUpdate(BaseModel):
 
 
 class ParticipantOut(BaseModel):
-    id: str
-    deal_id: str
-    user_id: Optional[str] = None
+    id: StrId
+    deal_id: StrId
+    user_id: Optional[StrId] = None
     role: str
     full_name: Optional[str] = None
     email: Optional[str] = None
@@ -71,15 +75,15 @@ class ParticipantOut(BaseModel):
 
 
 class DealOut(BaseModel):
-    id: str
-    creator_id: str
+    id: StrId
+    creator_id: StrId
     creator_name: Optional[str] = None
     title: str
     category: str
     description: str
     currency: str
     status: str
-    current_version_id: Optional[str] = None
+    current_version_id: Optional[StrId] = None
     current_version_number: Optional[int] = None
     participants: List[ParticipantOut] = []
     counterparty: Optional[ParticipantOut] = None
@@ -113,7 +117,7 @@ class InvitationOut(BaseModel):
 
 
 class InvitationInfo(BaseModel):
-    deal_id: str
+    deal_id: StrId
     deal_title: str
     creator_name: str
     category: str
@@ -132,7 +136,7 @@ class ConversationCreate(BaseModel):
 
 
 class MessageOut(BaseModel):
-    id: str
+    id: StrId
     speaker_label: str
     message_text: str
     message_timestamp: Optional[str] = None
@@ -142,9 +146,9 @@ class MessageOut(BaseModel):
 
 
 class ConversationOut(BaseModel):
-    id: str
-    deal_id: str
-    uploaded_by: str
+    id: StrId
+    deal_id: StrId
+    uploaded_by: StrId
     uploaded_by_name: Optional[str] = None
     source_type: str
     original_content: str
@@ -189,11 +193,11 @@ class AnalysisSchema(BaseModel):
 
 
 class AnalysisOut(BaseModel):
-    id: str
-    deal_id: str
-    conversation_id: Optional[str] = None
+    id: StrId
+    deal_id: StrId
+    conversation_id: Optional[StrId] = None
     analysis: Dict[str, Any]
-    created_by: str
+    created_by: StrId
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -213,12 +217,12 @@ class ClarificationUpdate(BaseModel):
 
 
 class ClarificationOut(BaseModel):
-    id: str
-    deal_id: str
+    id: StrId
+    deal_id: StrId
     field_name: str
     question: str
     answer: str
-    answered_by: str
+    answered_by: StrId
     answered_by_name: Optional[str] = None
     created_at: datetime
 
@@ -251,8 +255,8 @@ class ApprovalRequest(BaseModel):
 
 
 class ApprovalOut(BaseModel):
-    id: str
-    participant_id: str
+    id: StrId
+    participant_id: StrId
     participant_name: str
     role: str
     status: str  # approved, changes_requested, pending
@@ -269,8 +273,8 @@ class CommentCreate(BaseModel):
 
 
 class CommentOut(BaseModel):
-    id: str
-    participant_id: str
+    id: StrId
+    participant_id: StrId
     participant_name: str
     field_name: str
     comment_text: str
@@ -280,12 +284,12 @@ class CommentOut(BaseModel):
 
 
 class AgreementVersionOut(BaseModel):
-    id: str
-    deal_id: str
+    id: StrId
+    deal_id: StrId
     version_number: int
     agreement_json: Dict[str, Any]
     agreement_text: str
-    created_by: str
+    created_by: StrId
     created_by_name: Optional[str] = None
     created_at: datetime
     superseded_at: Optional[datetime] = None
@@ -308,9 +312,9 @@ class AmendmentCreate(BaseModel):
 
 
 class AmendmentOut(BaseModel):
-    id: str
-    deal_id: str
-    proposed_by: str
+    id: StrId
+    deal_id: StrId
+    proposed_by: StrId
     proposed_by_name: Optional[str] = None
     field_name: str
     original_value: str
@@ -326,9 +330,9 @@ class AmendmentOut(BaseModel):
 # Activity Logs (Tamper-Evident SHA-256)
 # ==========================================
 class ActivityLogOut(BaseModel):
-    id: str
-    deal_id: str
-    actor_id: Optional[str] = None
+    id: StrId
+    deal_id: StrId
+    actor_id: Optional[StrId] = None
     actor_name: Optional[str] = None
     event_type: str
     event_data: Dict[str, Any]
@@ -343,7 +347,7 @@ class AuditVerificationResult(BaseModel):
     valid: bool
     total_events: int
     verified_events: int
-    broken_at_id: Optional[str] = None
+    broken_at_id: Optional[StrId] = None
     message: str
 
 
@@ -351,9 +355,9 @@ class AuditVerificationResult(BaseModel):
 # Notifications
 # ==========================================
 class NotificationOut(BaseModel):
-    id: str
-    user_id: str
-    deal_id: Optional[str] = None
+    id: StrId
+    user_id: StrId
+    deal_id: Optional[StrId] = None
     deal_title: Optional[str] = None
     title: str
     message: str
@@ -361,3 +365,4 @@ class NotificationOut(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
