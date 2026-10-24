@@ -1,0 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-neutral-900 font-sans antialiased min-h-screen selection:bg-navy-100 selection:text-navy-900;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold text-neutral-900 tracking-tight;
+  }
+}
+
+/* Document View Paper Style */
+.document-paper {
+  background: #FFFFFF;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  border: 1px solid #E2E8F0;
+}
+
+.document-clause-card {
+  transition: all 0.15s ease-in-out;
+}
+
+.document-clause-card:hover {
+  border-color: #CBD5E1;
+}
+
+/* Custom subtle scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
