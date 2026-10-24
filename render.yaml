@@ -1,3 +1,9 @@
+databases:
+  - name: legalbandu-db
+    databaseName: legalbandu
+    user: legalbandu_user
+    plan: free
+
 services:
   - type: web
     name: legalbandu-backend
@@ -10,13 +16,9 @@ services:
       - key: PYTHON_VERSION
         value: 3.11.9
       - key: DATABASE_URL
-        sync: false
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
-      - key: SUPABASE_JWT_SECRET
-        sync: false
+        fromDatabase:
+          name: legalbandu-db
+          property: connectionString
       - key: GEMINI_API_KEY
         sync: false
       - key: FRONTEND_URL
