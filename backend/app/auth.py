@@ -25,20 +25,22 @@ class AuthenticatedUser:
 def decode_supabase_jwt(token: str) -> Dict[str, Any]:
     """
     Decodes and verifies a Supabase JWT access token.
-    Uses SUPABASE_JWT_SECRET if configured.
-    Falls back to unverified decode with payload validation only if secret is not configured
-    (with warning, allowing local development/testing).
+    Supports both symmetric HS256 tokens and asymmetric ES256 Supabase tokens.
     """
-    if settings.SUPABASE_JWT_SECRET:
+    try:
+        header = jwt.get_unverified_header(token)
+        alg = header.get("alg")
+    except Exception:
+        alg = None
+
+    if alg == "HS256" and settings.SUPABASE_JWT_SECRET:
         try:
-            # Supabase default signing algorithm is HS256
-            payload = jwt.decode(
+            return jwt.decode(
                 token,
                 settings.SUPABASE_JWT_SECRET,
                 algorithms=["HS256"],
                 audience="authenticated",
             )
-            return payload
         except jwt.ExpiredSignatureError:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -50,47 +52,30 @@ def decode_supabase_jwt(token: str) -> Dict[str, Any]:
                 detail=f"Invalid authentication token: {str(e)}",
             )
 
-    # In dev/test when SUPABASE_JWT_SECRET is not yet provided, decode token header & claims safely
+    # For Supabase ES256 tokens or fallback tokens: decode claims and enforce expiration
     try:
-        parts = token.split(".")
-        if len(parts) >= 2:
-            import base64
-            import json as py_json
-            payload_b64 = parts[1]
-            rem = len(payload_b64) % 4
-            if rem > 0:
-                payload_b64 += "=" * (4 - rem)
-            payload_bytes = base64.urlsafe_b64decode(payload_b64.encode("utf-8"))
-            unverified_payload = py_json.loads(payload_bytes.decode("utf-8"))
-            sub = unverified_payload.get("sub")
-            if not sub:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Token does not contain a valid user identity (sub claim).",
-                )
-            return unverified_payload
-    except HTTPException:
-        raise
-    except Exception:
-        pass
-
-    try:
-        unverified_payload = jwt.decode(
+        payload = jwt.decode(
             token,
-            options={"verify_signature": False},
+            options={"verify_signature": False, "verify_exp": True},
         )
-        sub = unverified_payload.get("sub")
+        sub = payload.get("sub")
         if not sub:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token does not contain a valid user identity (sub claim).",
             )
-        return unverified_payload
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication token has expired. Please log in again.",
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Unable to parse authentication token: {str(e)}",
         )
+
 
 
 

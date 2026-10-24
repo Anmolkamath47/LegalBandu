@@ -20,40 +20,63 @@ async function request(path, options = {}) {
   }
 
   const url = `${API_BASE}${path}`;
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  
+  // Timeout protection
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), options.timeout || 20000);
 
-  if (!response.ok) {
-    let errorDetail = `Request failed with status ${response.status}`;
-    try {
-      const errJson = await response.json();
-      errorDetail = errJson.detail || errJson.message || errorDetail;
-    } catch {
-      const text = await response.text();
-      if (text) errorDetail = text;
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers,
+      signal: options.signal || controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      let errorDetail = `Request failed with status ${response.status}`;
+      try {
+        const errJson = await response.json();
+        errorDetail = errJson.detail || errJson.message || errorDetail;
+      } catch {
+        const text = await response.text();
+        if (text) errorDetail = text;
+      }
+      const error = new Error(errorDetail);
+      error.status = response.status;
+      throw error;
     }
-    const error = new Error(errorDetail);
-    error.status = response.status;
-    throw error;
-  }
 
-  // If response is PDF blob
-  if (response.headers.get('content-type')?.includes('application/pdf')) {
-    return response.blob();
-  }
+    // If response is PDF blob
+    if (response.headers.get('content-type')?.includes('application/pdf')) {
+      return response.blob();
+    }
 
-  // If 204 No Content
-  if (response.status === 204) {
-    return null;
-  }
+    // If 204 No Content
+    if (response.status === 204) {
+      return null;
+    }
 
-  return response.json();
+    return response.json();
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new Error('Request timed out. Please check your network connection.');
+    }
+    throw err;
+  }
 }
 
 export const api = {
-  // Health & Profile
+  // Auth & Profile
+  register: (email, password, fullName) => request('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ email, password, full_name: fullName }),
+  }),
+  login: (email, password) => request('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  }),
   checkHealth: () => request('/health'),
   getMe: () => request('/me'),
   updateProfile: (fullName) => request('/me/profile', {
@@ -62,6 +85,7 @@ export const api = {
   }),
 
   // Deals
+
   getDashboardStats: () => request('/deals/stats'),
   getDeals: (params = {}) => {
     const searchParams = new URLSearchParams();
