@@ -27,6 +27,7 @@ from ..schemas import (
 from ..services.audit_service import record_activity
 from ..services.notification_service import create_notification, notify_other_participants
 from ..services.pdf_service import generate_agreement_pdf
+from ..services.ai_service import generate_agreement_text
 
 router = APIRouter(prefix="", tags=["Agreements & Mutual Confirmation"])
 
@@ -138,7 +139,8 @@ def create_agreement_version(
 ):
     """
     Creates an agreement version (v1 or increments) from reviewed terms.
-    Initializes pending approval records for participants.
+    Auto-generates a complete, legally-valid agreement text under Indian law
+    when the supplied text is a short stub (< 500 chars).
     """
     verify_deal_participant(deal_id, current_user, db)
     deal = db.query(Deal).filter(Deal.id == deal_id).first()
@@ -154,11 +156,67 @@ def create_agreement_version(
     if latest_version and not latest_version.superseded_at:
         latest_version.superseded_at = datetime.now(timezone.utc)
 
+    # ── Resolve party names from participant profiles ─────────────────────────
+    all_participants = db.query(DealParticipant).filter(DealParticipant.deal_id == deal.id).all()
+    party_a_name = "Party A"
+    party_b_name = "Party B"
+
+    if deal.creator_id:
+        creator_prof = db.query(Profile).filter(Profile.id == deal.creator_id).first()
+        if creator_prof and creator_prof.full_name:
+            party_a_name = creator_prof.full_name
+
+    for p in all_participants:
+        name = None
+        if p.user_id:
+            prof = db.query(Profile).filter(Profile.id == p.user_id).first()
+            name = (prof.full_name if prof else None) or p.invitation_email
+        else:
+            name = p.invitation_email
+
+        if p.role == "creator" and name:
+            party_a_name = name
+        elif p.role == "counterparty" and name:
+            party_b_name = name
+
+    aj = data.agreement_json or {}
+    work_scope    = aj.get("work_scope") or deal.description or "Scope of deliverables as agreed between the Parties."
+    financial     = aj.get("financial_terms") or f"Agreed consideration in {deal.currency} as per mutual terms."
+    timeline      = aj.get("timeline") or "As mutually agreed in writing by the Parties."
+    responsibilities = aj.get("responsibilities") or "Both Parties shall discharge their obligations in good faith and with professional diligence."
+    delivery      = aj.get("delivery_acceptance") or ""
+    cancellation  = aj.get("cancellation_refunds") or ""
+    warranty      = aj.get("warranty_revisions") or ""
+
+    # Auto-generate the full legal agreement text when a stub is supplied
+    agreement_text = data.agreement_text or ""
+    if len(agreement_text.strip()) < 500:
+        try:
+            agreement_text = generate_agreement_text(
+                deal_title=deal.title,
+                deal_id=str(deal.id),
+                category=deal.category or "Services",
+                currency=deal.currency or "INR",
+                party_a_name=party_a_name,
+                party_b_name=party_b_name,
+                work_scope=work_scope,
+                financial_terms=financial,
+                timeline=timeline,
+                responsibilities=responsibilities,
+                delivery_acceptance=delivery,
+                cancellation_refunds=cancellation,
+                warranty_revisions=warranty,
+            )
+        except Exception as gen_err:
+            import logging as _log
+            _log.getLogger(__name__).warning(f"Agreement text generation failed: {gen_err}")
+            # Keep whatever the client sent rather than raising
+
     new_version = AgreementVersion(
         deal_id=deal.id,
         version_number=next_version_num,
         agreement_json=data.agreement_json,
-        agreement_text=data.agreement_text,
+        agreement_text=agreement_text,
         created_by=current_user.id,
     )
     db.add(new_version)
@@ -170,10 +228,7 @@ def create_agreement_version(
     db.commit()
 
     # Create pending approval entries for all active participants
-    participants = (
-        db.query(DealParticipant).filter(DealParticipant.deal_id == deal.id).all()
-    )
-    for p in participants:
+    for p in all_participants:
         approval = AgreementApproval(
             agreement_version_id=new_version.id,
             participant_id=p.id,

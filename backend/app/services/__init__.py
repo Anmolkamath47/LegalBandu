@@ -1,6 +1,6 @@
 from .audit_service import record_activity, verify_activity_chain
 from .notification_service import create_notification, notify_other_participants
-from .ai_service import analyze_conversation_with_gemini, is_gemini_configured, AIConfigurationError, AIServiceError
+from .ai_service import analyze_conversation_with_gemini, is_gemini_configured, AIConfigurationError, AIServiceError, generate_agreement_text
 from .pdf_service import generate_agreement_pdf
 from .ai_detector_service import detect_ai_in_document, extract_bond_terms
 from .audio_service import save_audio_file, transcribe_audio_file
@@ -29,6 +29,7 @@ __all__ = [
     "AIConfigurationError",
     "AIServiceError",
     "generate_agreement_pdf",
+    "generate_agreement_text",
     "detect_ai_in_document",
     "extract_bond_terms",
     "save_audio_file",

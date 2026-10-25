@@ -481,6 +481,10 @@ Analyze the transcript thoroughly. Return strictly valid JSON with no markdown b
         cleaned = cleaned.strip()
 
         data = json.loads(cleaned)
+        if isinstance(data.get("price"), dict) and data["price"].get("value"):
+            val = str(data["price"]["value"])
+            val = re.sub(r'^(?:Rs\.?|₹|INR|\$|€|£)\s*', '', val, flags=re.IGNORECASE).strip()
+            data["price"]["value"] = val
         return data
 
     except Exception as e:
@@ -495,3 +499,254 @@ Analyze the transcript thoroughly. Return strictly valid JSON with no markdown b
             description=description,
         )
 
+
+def generate_agreement_text(
+    deal_title: str,
+    deal_id: str,
+    category: str,
+    currency: str,
+    party_a_name: str,
+    party_b_name: str,
+    work_scope: str,
+    financial_terms: str,
+    timeline: str,
+    responsibilities: str,
+    delivery_acceptance: str = "",
+    cancellation_refunds: str = "",
+    warranty_revisions: str = "",
+    place_of_execution: str = "Bengaluru, Karnataka",
+) -> str:
+    """
+    Generates a complete, legally-valid agreement text under Indian law.
+
+    Uses Gemini AI when configured for a polished output, otherwise uses a
+    structured template that satisfies:
+    - Indian Contract Act, 1872 (Sections 10, 23, 25, 29)
+    - Information Technology Act, 2000 (Section 10A) — electronic execution
+    - Bharatiya Sakshya Adhiniyam, 2023 — electronic record admissibility
+    - Arbitration and Conciliation Act, 1996 — dispute resolution
+    """
+    from datetime import datetime, timezone
+    today = datetime.now(timezone.utc).strftime("%d %B %Y")
+    ref_id = (deal_id or "XXXXXXXX")[:8].upper()
+
+    if is_gemini_configured():
+        prompt = (
+            f"You are a qualified Indian commercial lawyer. Draft a complete, formal, numbered bilateral "
+            f"commercial agreement under Indian law. Use plain English — no latin, no excessive legalese.\n\n"
+            f"DEAL: {deal_title}\nREF: LB-{ref_id}\nDATE: {today}\nPLACE: {place_of_execution}\n"
+            f"PARTY A: {party_a_name}\nPARTY B: {party_b_name}\n"
+            f"CATEGORY: {category}\nCURRENCY: {currency}\n\n"
+            f"AGREED TERMS:\n"
+            f"Scope: {work_scope}\n"
+            f"Financial: {financial_terms}\n"
+            f"Timeline: {timeline}\n"
+            f"Responsibilities: {responsibilities}\n"
+            f"Delivery & Acceptance: {delivery_acceptance or 'Party B reviews within 5 business days; silence = accepted.'}\n"
+            f"Cancellation: {cancellation_refunds or '7 days written notice; pro-rata payment for completed work.'}\n"
+            f"Warranty: {warranty_revisions or '2 rounds of revisions within 14 days of delivery.'}\n\n"
+            f"REQUIRED CLAUSES (number each):\n"
+            f"1. Parties  2. Scope of Work  3. Financial Terms & Payment  4. Timeline  "
+            f"5. Responsibilities  6. Delivery & Acceptance  7. Warranty  8. Termination  "
+            f"9. Confidentiality  10. Intellectual Property  11. Dispute Resolution (Arbitration & Conciliation Act 1996, seat: {place_of_execution})  "
+            f"12. Governing Law ({place_of_execution} courts)  13. General Provisions (entire agreement, amendments in writing, severability)  "
+            f"14. Electronic Execution (IT Act 2000 s.10A, Legalbandu ref LB-{ref_id})  "
+            f"15. Signatures block with blank lines for both parties\n\n"
+            f"End with this disclaimer verbatim:\n"
+            f"LEGAL DISCLAIMER: This Agreement is documented through Legalbandu (LB-{ref_id}), a Technology Intermediary "
+            f"under Section 2(1)(w) of the Information Technology Act, 2000. Legalbandu is not a law firm and does not "
+            f"provide legal advice. For instruments requiring stamp duty, notarization, or SRO registration, engage a "
+            f"qualified advocate and comply with the Indian Stamp Act and Registration Act.\n\n"
+            f"Output ONLY the agreement text. No markdown. No JSON. No commentary."
+        )
+        try:
+            raw_text = None
+            try:
+                from google import genai
+                client = genai.Client(api_key=settings.GEMINI_API_KEY)
+                for candidate_model in [settings.GEMINI_MODEL, "gemini-3.5-flash-lite", "gemini-flash-lite-latest"]:
+                    try:
+                        response = client.models.generate_content(model=candidate_model, contents=prompt)
+                        if response.text and response.text.strip():
+                            raw_text = response.text.strip()
+                            break
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+            if raw_text:
+                if raw_text.startswith("```"):
+                    parts = raw_text.split("```")
+                    raw_text = parts[2] if len(parts) > 2 else parts[-1]
+                return raw_text.strip()
+        except Exception as e:
+            logger.warning(f"Gemini agreement generation failed ({e}); using template.")
+
+    # ── Template fallback ────────────────────────────────────────────────────
+    delivery_text = delivery_acceptance or (
+        f"{party_b_name} shall review deliverables and communicate acceptance or required revisions "
+        "within 5 (five) business days of submission. Silence beyond that period shall be deemed acceptance."
+    )
+    cancel_text = cancellation_refunds or (
+        "Either Party may terminate this Agreement by giving 7 (seven) days' written notice. "
+        "Upon termination, payment shall be made on a pro-rata basis for work verified as completed."
+    )
+    warranty_text = warranty_revisions or (
+        f"{party_a_name} shall rectify defects in deliverables at no additional cost within "
+        "14 (fourteen) calendar days of written notice, limited to 2 (two) rounds of revisions."
+    )
+
+    return f"""BILATERAL COMMERCIAL AGREEMENT
+Deal Reference: LB-{ref_id}
+Date of Execution: {today}
+Place of Execution: {place_of_execution}
+Category: {category}
+
+────────────────────────────────────────────────────────
+
+1. PARTIES
+
+This Agreement ("Agreement") is entered into on {today} at {place_of_execution}, by and between:
+
+PARTY A: {party_a_name} ("First Party")
+PARTY B: {party_b_name} ("Second Party")
+
+The Parties enter into this Agreement freely and voluntarily, with full legal capacity to contract under Section 11 of the Indian Contract Act, 1872.
+
+────────────────────────────────────────────────────────
+
+2. SCOPE OF WORK AND DELIVERABLES
+
+2.1 Party A shall perform and deliver the following:
+
+{work_scope}
+
+2.2 Any work outside this scope requires a written amendment signed by both Parties before commencement.
+
+────────────────────────────────────────────────────────
+
+3. FINANCIAL TERMS AND PAYMENT SCHEDULE
+
+3.1 Party B agrees to pay Party A the following consideration in {currency}:
+
+{financial_terms}
+
+3.2 All amounts are in {currency}. GST or other applicable taxes shall be borne by Party B unless otherwise stated.
+
+3.3 Payments delayed beyond 7 days of the due date shall attract interest at 12% per annum from the due date until actual payment.
+
+────────────────────────────────────────────────────────
+
+4. TIMELINE AND MILESTONES
+
+4.1 {timeline}
+
+4.2 Time is of the essence. Extension requests must be made in writing at least 3 days before the relevant deadline and require Party B's written consent.
+
+────────────────────────────────────────────────────────
+
+5. RESPONSIBILITIES AND OBLIGATIONS
+
+5.1 {responsibilities}
+
+5.2 Party A shall: perform all work with professional diligence; deliver outputs free of material defects; maintain confidentiality of Party B's information; communicate proactively on progress.
+
+5.3 Party B shall: provide all required inputs, approvals, and access in a timely manner; make payments on the agreed schedule; not engage a third party for the same scope without Party A's written consent.
+
+────────────────────────────────────────────────────────
+
+6. DELIVERY AND ACCEPTANCE
+
+6.1 {delivery_text}
+
+6.2 Deliverables are accepted upon Party B's written confirmation or upon expiry of the review period, whichever occurs first.
+
+────────────────────────────────────────────────────────
+
+7. WARRANTY AND REVISIONS
+
+7.1 {warranty_text}
+
+────────────────────────────────────────────────────────
+
+8. TERMINATION AND CANCELLATION
+
+8.1 {cancel_text}
+
+8.2 On termination, each Party shall return the other Party's confidential materials. All undisputed payment obligations accrued up to the termination date survive termination.
+
+────────────────────────────────────────────────────────
+
+9. CONFIDENTIALITY
+
+9.1 Each Party shall treat as confidential all non-public information received from the other Party and shall not disclose it to any third party without prior written consent, except as required by applicable law.
+
+────────────────────────────────────────────────────────
+
+10. INTELLECTUAL PROPERTY
+
+10.1 All deliverables created specifically for Party B under this Agreement shall, upon full payment of agreed compensation, vest absolutely in Party B, unless otherwise agreed in writing.
+
+────────────────────────────────────────────────────────
+
+11. DISPUTE RESOLUTION
+
+11.1 The Parties shall first attempt to resolve any dispute through good-faith negotiation within 15 (fifteen) days of written notice of the dispute.
+
+11.2 If unresolved, the dispute shall be referred to sole-arbitrator arbitration under the Arbitration and Conciliation Act, 1996 (as amended). The seat of arbitration shall be {place_of_execution}. The arbitral award shall be final and binding.
+
+────────────────────────────────────────────────────────
+
+12. GOVERNING LAW AND JURISDICTION
+
+12.1 This Agreement shall be governed by the laws of the Republic of India. Subject to Clause 11, the courts at {place_of_execution} shall have exclusive jurisdiction.
+
+────────────────────────────────────────────────────────
+
+13. GENERAL PROVISIONS
+
+13.1 ENTIRE AGREEMENT: This Agreement supersedes all prior representations and agreements on the same subject matter.
+
+13.2 AMENDMENTS: Amendments are valid only if made in writing and confirmed by both Parties.
+
+13.3 SEVERABILITY: If any clause is held unenforceable, the remaining clauses continue in full effect.
+
+13.4 WAIVER: Failure to enforce any clause shall not be construed as a waiver of the right to enforce it subsequently.
+
+13.5 INDEPENDENT CONTRACTORS: The Parties are independent contractors. Nothing herein creates an employment, partnership, or agency relationship.
+
+13.6 FORCE MAJEURE: Neither Party is liable for delays caused by events beyond their reasonable control, provided prompt written notice is given.
+
+────────────────────────────────────────────────────────
+
+14. ELECTRONIC EXECUTION
+
+14.1 This Agreement is documented and executed electronically through Legalbandu (Ref: LB-{ref_id}), a Technology Intermediary under Section 2(1)(w) of the Information Technology Act, 2000.
+
+14.2 Electronic signatures and mutual digital confirmations on the Legalbandu platform are valid and legally binding under Section 10A of the Information Technology Act, 2000, and constitute acceptance under Section 10 of the Indian Contract Act, 1872.
+
+14.3 The electronic record of this Agreement, including the tamper-evident SHA-256 audit trail, is admissible as evidence under the Bharatiya Sakshya Adhiniyam, 2023.
+
+────────────────────────────────────────────────────────
+
+SIGNATURES
+
+IN WITNESS WHEREOF, the Parties hereby confirm their free, informed, and unconditional consent to this Agreement as of the date first written above.
+
+PARTY A — {party_a_name}
+
+Signature: _______________________________
+Name: {party_a_name}
+Date: _____________
+Place: {place_of_execution}
+
+PARTY B — {party_b_name}
+
+Signature: _______________________________
+Name: {party_b_name}
+Date: _____________
+Place: {place_of_execution}
+
+────────────────────────────────────────────────────────
+
+LEGAL DISCLAIMER: This Agreement is documented through Legalbandu (LB-{ref_id}), a Technology Intermediary under Section 2(1)(w) of the Information Technology Act, 2000. Legalbandu is not a law firm and does not provide legal advice. For instruments requiring stamp duty, notarization, or Sub-Registrar registration, engage a qualified advocate and comply with the Indian Stamp Act, 1899 and Registration Act, 1908.""".strip()

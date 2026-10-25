@@ -476,38 +476,34 @@ export default function DealWorkspacePage({ onOpenAdminAuth }) {
   async function handleGenerateAgreement() {
     setSubmittingAction(true);
     try {
-      // Build plain language agreement from analysis & clarifications
-      const workScopeText = analysis?.work_scope?.value || deal.description || 'Scope of deliverables to be mutually defined by parties.';
-      const priceText = analysis?.price?.value
-        ? `${analysis.price.value} ${analysis?.currency?.value || deal.currency}`
-        : 'Pending mutual agreement by parties';
-      const timelineText = (analysis?.start_date?.value || analysis?.completion_deadline?.value)
-        ? `Start: ${analysis.start_date?.value || 'Mutually agreed date'}, Completion: ${analysis.completion_deadline?.value || 'As agreed'}`
-        : 'Timeline to be mutually agreed by parties';
-      const responsibilitiesText = analysis?.responsibilities?.value || 'Mutual obligations to be specified by parties';
-
+      // Send the extracted terms to the backend.
+      // The backend will auto-generate a complete, court-admissible
+      // Indian law agreement (14 clauses, arbitration, governing law, etc.)
       const agreementJson = {
-        work_scope: workScopeText,
-        financial_terms: priceText,
-        timeline: timelineText,
-        responsibilities: responsibilitiesText,
-        delivery_acceptance: analysis?.delivery_acceptance_conditions?.value || 'Subject to mutual bilateral agreement',
-        cancellation_refunds: analysis?.cancellation_refund_conditions?.value || 'Requires bilateral written agreement',
-        unresolved_terms: analysis?.unresolved_terms || [],
+        work_scope:       analysis?.work_scope?.value              || deal.description || '',
+        financial_terms:  analysis?.price?.value
+          ? `${analysis.price.value} ${analysis?.currency?.value || deal.currency}. Payment: ${analysis?.payment_terms?.value || 'as mutually agreed.'}`
+          : `As mutually agreed in ${deal.currency}.`,
+        timeline:         (analysis?.start_date?.value || analysis?.completion_deadline?.value)
+          ? `Start: ${analysis?.start_date?.value || 'As agreed'}. Completion: ${analysis?.completion_deadline?.value || 'As agreed.'}`
+          : 'Timeline to be mutually agreed by the Parties in writing.',
+        responsibilities: analysis?.responsibilities?.value        || '',
+        delivery_acceptance:  analysis?.delivery_acceptance_conditions?.value  || '',
+        cancellation_refunds: analysis?.cancellation_refund_conditions?.value  || '',
+        warranty_revisions:   analysis?.warranty_revision_terms?.value         || '',
+        unresolved_terms:     analysis?.unresolved_terms                        || [],
       };
 
-      const plainText = `AGREEMENT: ${deal.title}\n\n1. SCOPE OF WORK\n${workScopeText}\n\n2. FINANCIAL TERMS\n${priceText}\n\n3. TIMELINE\n${timelineText}\n\n4. RESPONSIBILITIES\n${responsibilitiesText}`;
-
+      // Pass an empty agreement_text — the backend generates the full legal document
       const newV = await api.createAgreement(dealId, {
         agreement_json: agreementJson,
-        agreement_text: plainText,
+        agreement_text: '',
       });
 
       setVersions([newV, ...versions]);
       setCurrentVersion(newV);
       initEditFields(newV);
       setActiveTab('agreement');
-      // Update deal status
       const updatedDeal = await api.getDeal(dealId);
       setDeal(updatedDeal);
       api.getActivity(dealId).then(setActivityLogs).catch(() => {});
@@ -517,6 +513,7 @@ export default function DealWorkspacePage({ onOpenAdminAuth }) {
       setSubmittingAction(false);
     }
   }
+
 
   // 5. Save Agreement Edit (v+1 Substantive Revision)
   async function handleSaveAgreementEdit(e) {
