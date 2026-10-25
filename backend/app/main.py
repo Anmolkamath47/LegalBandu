@@ -62,6 +62,29 @@ app.include_router(notifications_router, prefix=settings.API_V1_PREFIX)
 app.include_router(bonds_router, prefix=settings.API_V1_PREFIX)
 
 
+import os
+from fastapi.responses import FileResponse
+from fastapi import HTTPException
+from .services.audio_service import UPLOAD_DIR as AUDIO_UPLOAD_DIR
+from .services.image_service import UPLOAD_DIR as IMAGE_UPLOAD_DIR
+
+
+@app.get("/api/audio/{filename}")
+def serve_audio_file(filename: str):
+    file_path = os.path.join(AUDIO_UPLOAD_DIR, filename)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Audio file not found.")
+    return FileResponse(file_path)
+
+
+@app.get("/api/images/{filename}")
+def serve_image_file(filename: str):
+    file_path = os.path.join(IMAGE_UPLOAD_DIR, filename)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Image file not found.")
+    return FileResponse(file_path)
+
+
 @app.get("/")
 def root():
     return {
@@ -70,3 +93,4 @@ def root():
         "docs": "/docs",
         "health": f"{settings.API_V1_PREFIX}/health",
     }
+

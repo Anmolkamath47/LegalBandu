@@ -22,6 +22,7 @@ from ..schemas import (
     ApprovalOut,
     CommentCreate,
     CommentOut,
+    SignAgreementRequest,
 )
 from ..services.audit_service import record_activity
 from ..services.notification_service import create_notification, notify_other_participants
@@ -570,6 +571,116 @@ def add_agreement_comment(
         comment_text=comment.comment_text,
         created_at=comment.created_at,
     )
+
+
+@router.post("/agreements/{version_id}/sign", response_model=AgreementVersionOut)
+@router.post("/deals/{deal_id}/agreements/{version_id}/sign", response_model=AgreementVersionOut)
+def sign_agreement_version(
+    version_id: str,
+    data: SignAgreementRequest,
+    deal_id: Optional[str] = None,
+    current_user: AuthenticatedUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Executes live handwritten e-signature on the agreement paper layout.
+    Available after both participants accept/confirm the agreement.
+    Saves authentic signature image, audit metadata, and verification seal.
+    """
+    import copy
+    import uuid
+    from sqlalchemy.orm.attributes import flag_modified
+
+    version = (
+        db.query(AgreementVersion).filter(AgreementVersion.id == version_id).first()
+    )
+    if not version:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Agreement version not found.",
+        )
+
+    participant = verify_deal_participant(version.deal_id, current_user, db)
+    deal = db.query(Deal).filter(Deal.id == version.deal_id).first()
+
+    # Check that both participants have accepted the agreement
+    participants = (
+        db.query(DealParticipant)
+        .filter(
+            DealParticipant.deal_id == deal.id,
+            DealParticipant.user_id.isnot(None),
+        )
+        .all()
+    )
+    approvals = (
+        db.query(AgreementApproval)
+        .filter(AgreementApproval.agreement_version_id == version.id)
+        .all()
+    )
+    approved_part_ids = {a.participant_id for a in approvals if a.status == "approved"}
+
+    is_confirmed = (
+        len(participants) >= 2
+        and all(p.id in approved_part_ids for p in participants)
+    )
+    if len(participants) >= 2 and not is_confirmed:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Agreement terms must be mutually confirmed and approved by both participants before live e-signatures can be executed.",
+        )
+    if len(participants) < 2 and participant.id not in approved_part_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Please approve this agreement version before signing.",
+        )
+
+    prof = db.query(Profile).filter(Profile.id == current_user.id).first()
+    signer_name = data.signer_name or (prof.full_name if prof else current_user.email)
+
+    agreement_json = copy.deepcopy(version.agreement_json or {})
+    if "signatures" not in agreement_json:
+        agreement_json["signatures"] = {}
+
+    stamp_id = f"LB-ESIGN-{uuid.uuid4().hex[:8].upper()}"
+
+    agreement_json["signatures"][str(participant.id)] = {
+        "signature_image": data.signature_image,
+        "signer_name": signer_name,
+        "participant_id": str(participant.id),
+        "user_id": str(current_user.id),
+        "role": participant.role,
+        "signed_at": datetime.now(timezone.utc).isoformat(),
+        "stamp_id": stamp_id,
+    }
+
+    version.agreement_json = agreement_json
+    flag_modified(version, "agreement_json")
+    db.commit()
+    db.refresh(version)
+
+    record_activity(
+        db=db,
+        deal_id=str(deal.id),
+        actor_id=str(current_user.id),
+        event_type="agreement_signed",
+        event_data={
+            "version_id": str(version.id),
+            "version_number": version.version_number,
+            "signer_name": signer_name,
+            "role": participant.role,
+            "stamp_id": stamp_id,
+        },
+    )
+
+    notify_other_participants(
+        db=db,
+        deal=deal,
+        actor_user_id=str(current_user.id),
+        title=f"Agreement v{version.version_number} Signed",
+        message=f"{signer_name} ({participant.role.capitalize()}) has digitally executed their live e-signature on the agreement.",
+    )
+
+    return build_version_out(version, deal, db)
 
 
 @router.get("/agreements/{version_id}/pdf")

@@ -4,6 +4,7 @@ from .ai_service import analyze_conversation_with_gemini, is_gemini_configured, 
 from .pdf_service import generate_agreement_pdf
 from .ai_detector_service import detect_ai_in_document, extract_bond_terms
 from .audio_service import save_audio_file, transcribe_audio_file
+from .image_service import save_image_file, extract_dialogue_from_image, SUPPORTED_IMAGE_EXTENSIONS
 
 __all__ = [
     "record_activity",
@@ -19,4 +20,8 @@ __all__ = [
     "extract_bond_terms",
     "save_audio_file",
     "transcribe_audio_file",
+    "save_image_file",
+    "extract_dialogue_from_image",
+    "SUPPORTED_IMAGE_EXTENSIONS",
 ]
+

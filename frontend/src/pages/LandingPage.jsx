@@ -8,7 +8,6 @@ import {
   Scale,
   Users,
   Mic,
-  ShieldAlert,
   CheckCircle2,
   Clock
 } from 'lucide-react';

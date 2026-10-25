@@ -151,6 +151,7 @@ class Conversation(Base):
     audio_url = Column(String(500), nullable=True)
     audio_filename = Column(String(255), nullable=True)
     audio_duration = Column(Integer, nullable=True)
+    image_url = Column(String(500), nullable=True)
     created_at = Column(DateTime(timezone=True), default=utc_now)
 
     deal = relationship("Deal", back_populates="conversations")

@@ -1,18 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
-import { Bell, CheckCheck, FileText, CheckCircle2, UserPlus, AlertCircle } from 'lucide-react';
+import { Bell, CheckCheck, FileText } from 'lucide-react';
 
 export default function NotificationsMenu({ onClose }) {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    loadNotifications();
-  }, []);
-
-  async function loadNotifications() {
+  const loadNotifications = useCallback(async () => {
     try {
       setLoading(true);
       const data = await api.getNotifications();
@@ -22,7 +18,11 @@ export default function NotificationsMenu({ onClose }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    loadNotifications();
+  }, [loadNotifications]);
 
   async function handleMarkAllRead() {
     try {

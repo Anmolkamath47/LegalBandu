@@ -20,6 +20,12 @@ from ..services.ai_service import (
 )
 from ..services.audit_service import record_activity
 from ..services.audio_service import save_audio_file, transcribe_audio_file, SUPPORTED_AUDIO_EXTENSIONS, UPLOAD_DIR
+from ..services.image_service import (
+    save_image_file,
+    extract_dialogue_from_image,
+    SUPPORTED_IMAGE_EXTENSIONS,
+    UPLOAD_DIR as IMAGE_UPLOAD_DIR,
+)
 
 router = APIRouter(prefix="", tags=["Conversations & AI Analysis"])
 
@@ -39,8 +45,8 @@ def parse_messages_from_text(raw_text: str) -> List[dict]:
     wa_pattern = re.compile(
         r"^\[?(\d{1,2}[/-]\d{1,2}[/-]\d{2,4},?\s+\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM|am|pm)?)\]?\s*(?:-\s*)?([^:]+):\s*(.*)$"
     )
-    # Simple speaker pattern: "Alice: Message"
-    simple_pattern = re.compile(r"^([A-Za-z0-9_\s]{2,30}):\s*(.*)$")
+    # Simple speaker pattern: "Alice: Message" or "Speaker 1 (Caller): Message" or "**Speaker 1:** Message"
+    simple_pattern = re.compile(r"^[\*#\s]*([A-Za-z0-9_\s\(\)\-\.]{2,40}?)[\*#\s]*:\s*(.*)$")
 
     current_speaker = "Participant"
     current_time = None
@@ -108,6 +114,8 @@ async def import_conversation(
     actual_source = source_type
     saved_audio_url = None
     saved_audio_filename = None
+    saved_image_url = None
+    saved_image_filename = None
 
     if file:
         filename = file.filename or "recording.webm"
@@ -130,6 +138,15 @@ async def import_conversation(
                 deal_title=deal.title,
                 client_transcript=client_transcript or content,
             )
+        elif ext in SUPPORTED_IMAGE_EXTENSIONS:
+            actual_source = "image_upload"
+            unique_name, file_path, saved_image_url = save_image_file(file_bytes, filename)
+            saved_image_filename = filename
+            raw_text = extract_dialogue_from_image(
+                file_path=file_path,
+                original_filename=filename,
+                deal_title=deal.title,
+            )
         elif ext in [".txt", ".text", ".chat"]:
             actual_source = "file_upload"
             try:
@@ -145,14 +162,14 @@ async def import_conversation(
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Unsupported format. Upload a text export (.txt) or call recording (.mp3, .wav, .m4a, .ogg, .webm).",
+                detail="Unsupported format. Upload a text export (.txt), image screenshot (.png, .jpg, .jpeg, .webp), or call recording (.mp3, .wav, .m4a, .ogg, .webm).",
             )
     elif content and content.strip():
         raw_text = content.strip()
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No conversation text or audio recording was provided.",
+            detail="No conversation text, image, or audio recording was provided.",
         )
 
     # 1. Save conversation record
@@ -163,6 +180,7 @@ async def import_conversation(
         original_content=raw_text,
         audio_url=saved_audio_url,
         audio_filename=saved_audio_filename,
+        image_url=saved_image_url,
     )
     db.add(conv)
     db.commit()
@@ -335,6 +353,7 @@ async def import_conversation(
         audio_url=conv.audio_url,
         audio_filename=conv.audio_filename,
         audio_duration=conv.audio_duration,
+        image_url=conv.image_url,
         messages=[
             MessageOut(
                 id=m.id,
@@ -378,6 +397,7 @@ def get_deal_conversations(
                 audio_url=c.audio_url,
                 audio_filename=c.audio_filename,
                 audio_duration=c.audio_duration,
+                image_url=c.image_url,
                 messages=[
                     MessageOut(
                         id=m.id,
@@ -412,6 +432,24 @@ def stream_audio(filename: str):
         ".flac": "audio/flac",
     }
     return FileResponse(file_path, media_type=media_types.get(ext, "audio/mpeg"))
+
+
+@router.get("/images/{filename}")
+def stream_image(filename: str):
+    """Serves uploaded chat screenshot and document images."""
+    file_path = os.path.join(IMAGE_UPLOAD_DIR, filename)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image file not found")
+
+    ext = os.path.splitext(filename)[1].lower()
+    media_types = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+        ".bmp": "image/bmp",
+    }
+    return FileResponse(file_path, media_type=media_types.get(ext, "image/png"))
 
 
 @router.post("/deals/{deal_id}/analyze", response_model=AnalysisOut)

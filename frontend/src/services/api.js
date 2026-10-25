@@ -191,6 +191,10 @@ export const api = {
     method: 'POST',
     body: JSON.stringify(payload),
   }),
+  signAgreement: (versionId, payload) => request(`/agreements/${versionId}/sign`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }),
   downloadPdf: async (versionId, filename = 'Agreement.pdf') => {
     const blob = await request(`/agreements/${versionId}/pdf`);
     const downloadUrl = window.URL.createObjectURL(blob);

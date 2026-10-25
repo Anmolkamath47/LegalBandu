@@ -156,6 +156,7 @@ class ConversationOut(BaseModel):
     audio_url: Optional[str] = None
     audio_filename: Optional[str] = None
     audio_duration: Optional[int] = None
+    image_url: Optional[str] = None
     messages: List[MessageOut] = []
     created_at: datetime
 
@@ -303,6 +304,11 @@ class AgreementVersionOut(BaseModel):
     is_mutually_confirmed: bool = False
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class SignAgreementRequest(BaseModel):
+    signature_image: str = Field(..., min_length=20)
+    signer_name: Optional[str] = None
 
 
 # ==========================================

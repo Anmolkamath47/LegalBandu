@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
@@ -17,7 +17,7 @@ import {
   LogOut
 } from 'lucide-react';
 
-export default function InvitePage({ onOpenAuth }) {
+export default function InvitePage() {
   const { token } = useParams();
   const navigate = useNavigate();
   const { user, signIn, signUp, signOut } = useAuth();
@@ -35,11 +35,7 @@ export default function InvitePage({ onOpenAuth }) {
   const [authSubmitting, setAuthSubmitting] = useState(false);
   const [authError, setAuthError] = useState('');
 
-  useEffect(() => {
-    loadInviteInfo();
-  }, [token]);
-
-  async function loadInviteInfo() {
+  const loadInviteInfo = useCallback(async () => {
     setLoading(true);
     setErrorMsg('');
     try {
@@ -53,7 +49,11 @@ export default function InvitePage({ onOpenAuth }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [token]);
+
+  useEffect(() => {
+    loadInviteInfo();
+  }, [loadInviteInfo]);
 
   async function handleAccept() {
     if (!user) {

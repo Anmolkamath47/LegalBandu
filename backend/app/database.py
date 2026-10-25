@@ -107,12 +107,25 @@ def init_db():
                         conn.execute(text("ALTER TABLE conversations ADD COLUMN audio_filename VARCHAR(255);"))
                     if "audio_duration" not in cols:
                         conn.execute(text("ALTER TABLE conversations ADD COLUMN audio_duration INTEGER;"))
+                    if "image_url" not in cols:
+                        conn.execute(text("ALTER TABLE conversations ADD COLUMN image_url VARCHAR(500);"))
                     conn.commit()
                 else:
                     conn.execute(text("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS audio_url VARCHAR(500);"))
                     conn.execute(text("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS audio_filename VARCHAR(255);"))
                     conn.execute(text("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS audio_duration INTEGER;"))
+                    conn.execute(text("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS image_url VARCHAR(500);"))
                     conn.execute(text("ALTER TABLE conversations DROP CONSTRAINT IF EXISTS conversations_source_type_check;"))
+                    conn.execute(text("ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_id_fkey;"))
+                    conn.execute(text("ALTER TABLE deals DROP CONSTRAINT IF EXISTS deals_creator_id_fkey;"))
+                    conn.execute(text("ALTER TABLE deal_participants DROP CONSTRAINT IF EXISTS deal_participants_user_id_fkey;"))
+                    conn.execute(text("ALTER TABLE agreement_versions DROP CONSTRAINT IF EXISTS agreement_versions_created_by_fkey;"))
+                    conn.execute(text("ALTER TABLE clarification_answers DROP CONSTRAINT IF EXISTS clarification_answers_answered_by_fkey;"))
+                    conn.execute(text("ALTER TABLE conversations DROP CONSTRAINT IF EXISTS conversations_uploaded_by_fkey;"))
+                    conn.execute(text("ALTER TABLE deal_analyses DROP CONSTRAINT IF EXISTS deal_analyses_created_by_fkey;"))
+                    conn.execute(text("ALTER TABLE amendments DROP CONSTRAINT IF EXISTS amendments_proposed_by_fkey;"))
+                    conn.execute(text("ALTER TABLE activity_logs DROP CONSTRAINT IF EXISTS activity_logs_actor_id_fkey;"))
+                    conn.execute(text("ALTER TABLE notifications DROP CONSTRAINT IF EXISTS notifications_user_id_fkey;"))
                     conn.commit()
         except Exception as mig_err:
             logger.debug(f"Column check notice: {mig_err}")

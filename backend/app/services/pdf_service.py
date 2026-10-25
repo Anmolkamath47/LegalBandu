@@ -13,6 +13,7 @@ from reportlab.platypus import (
     TableStyle,
     HRFlowable,
     KeepTogether,
+    Image as RLImage,
 )
 
 
@@ -142,9 +143,10 @@ def generate_agreement_pdf(
     story.append(Spacer(1, 12))
 
     # 2. Document Title & Reference
+    deal_id_str = str(deal_id)
     story.append(Paragraph(deal_title, title_style))
     ref_text = (
-        f"<b>Reference ID:</b> LB-{deal_id[:8].upper()} | "
+        f"<b>Reference ID:</b> LB-{deal_id_str[:8].upper()} | "
         f"<b>Version:</b> {version_number}.0 | "
         f"<b>Date:</b> {created_at.strftime('%d %B %Y')}"
     )
@@ -246,7 +248,8 @@ def generate_agreement_pdf(
         time_str = conf_time.strftime("%Y-%m-%d %H:%M:%S UTC") if isinstance(conf_time, datetime) else str(conf_time or "—")
         color_code = "#0D9488" if app.get("status") == "approved" else "#B45309"
 
-        stamp = f"LB-VERIFIED-{app.get('id', '')[:8].upper()}" if app.get("status") == "approved" else "PENDING"
+        app_id_str = str(app.get("id") or "")
+        stamp = f"LB-VERIFIED-{app_id_str[:8].upper()}" if app.get("status") == "approved" else "PENDING"
         approval_rows.append([
             Paragraph(f"{p_name}<br/><font size=8 color='#64748B'>{p_role}</font>", body_style),
             Paragraph(f"<font color='{color_code}'><b>{status_disp}</b></font>", body_style),
@@ -269,7 +272,61 @@ def generate_agreement_pdf(
     else:
         story.append(Paragraph("<i>No formal approval records submitted for this version yet.</i>", body_style))
 
-    # 7. Tamper-evident Audit Seal & Legal Disclaimer
+    # 7. Live Executed Digital Signatures
+    signatures = agreement_json.get("signatures", {})
+    if signatures:
+        story.append(Spacer(1, 14))
+        story.append(KeepTogether([
+            Paragraph("11. LIVE EXECUTED DIGITAL SIGNATURES", section_heading_style),
+            HRFlowable(width="100%", thickness=0.5, color=border_color, spaceAfter=8),
+        ]))
+
+        sig_cells = []
+        for pid, sig_info in signatures.items():
+            signer_name = sig_info.get("signer_name", "Participant")
+            role = sig_info.get("role", "Participant").capitalize()
+            signed_at = sig_info.get("signed_at", "")[:19].replace("T", " ")
+            stamp = sig_info.get("stamp_id", "LB-ESIGN-VERIFIED")
+            img_data = sig_info.get("signature_image", "")
+
+            cell_elements = []
+            if img_data and "base64," in img_data:
+                try:
+                    import base64
+                    base64_str = img_data.split("base64,")[1]
+                    raw_bytes = base64.b64decode(base64_str)
+                    sig_img = RLImage(io.BytesIO(raw_bytes), width=130, height=45)
+                    cell_elements.append(sig_img)
+                except Exception:
+                    cell_elements.append(Paragraph("<i>[Signature Verified Digitally]</i>", body_style))
+            else:
+                cell_elements.append(Paragraph("<i>[Signature Verified Digitally]</i>", body_style))
+
+            cell_elements.append(Spacer(1, 4))
+            cell_elements.append(Paragraph(f"<b>{signer_name}</b> ({role})", bold_label_style))
+            cell_elements.append(Paragraph(f"<font size=7 color='#64748B'>Executed: {signed_at} UTC<br/>Seal: <code>{stamp}</code></font>", body_style))
+            sig_cells.append(cell_elements)
+
+        if sig_cells:
+            if len(sig_cells) == 1:
+                sig_table = Table([[sig_cells[0]]], colWidths=[532])
+            else:
+                sig_table = Table([[sig_cells[0], sig_cells[1]]], colWidths=[266, 266])
+            sig_table.setStyle(
+                TableStyle([
+                    ("BACKGROUND", (0, 0), (-1, -1), light_bg),
+                    ("BOX", (0, 0), (-1, -1), 0.5, border_color),
+                    ("INNERGRID", (0, 0), (-1, -1), 0.5, border_color),
+                    ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ])
+            )
+            story.append(sig_table)
+
+    # 8. Tamper-evident Audit Seal & Legal Disclaimer
     story.append(Spacer(1, 24))
     story.append(HRFlowable(width="100%", thickness=1, color=border_color, spaceAfter=8))
     seal_text = (

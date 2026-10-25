@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
@@ -24,7 +24,8 @@ import {
   Scale,
   ShieldAlert,
   FileCheck2,
-  ChevronRight
+  PenTool,
+  Image as ImageIcon
 } from 'lucide-react';
 import InviteModal from '../components/InviteModal';
 import AIDetectorAlertModal from '../components/AIDetectorAlertModal';
@@ -61,9 +62,17 @@ export default function DealWorkspacePage() {
   const [conversations, setConversations] = useState([]);
   const [pasteContent, setPasteContent] = useState('');
   const [uploadFile, setUploadFile] = useState(null);
+  const [uploadType, setUploadType] = useState('text'); // 'text' | 'image'
+  const [imagePreview, setImagePreview] = useState(null);
   const [importing, setImporting] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [aiErrorMsg, setAiErrorMsg] = useState('');
+
+  // Live E-Signature State
+  const signatureCanvasRef = useRef(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [hasDrawn, setHasDrawn] = useState(false);
+  const [signingAgreement, setSigningAgreement] = useState(false);
 
   // Analysis & Terms State
   const [analysis, setAnalysis] = useState(null);
@@ -99,11 +108,7 @@ export default function DealWorkspacePage() {
   const [verificationResult, setVerificationResult] = useState(null);
   const [verifyingChain, setVerifyingChain] = useState(false);
 
-  useEffect(() => {
-    loadDealData();
-  }, [dealId]);
-
-  async function loadDealData() {
+  const loadDealData = useCallback(async () => {
     setLoading(true);
     setErrorMsg('');
     try {
@@ -140,7 +145,11 @@ export default function DealWorkspacePage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [dealId]);
+
+  useEffect(() => {
+    loadDealData();
+  }, [loadDealData]);
 
   function initEditFields(v) {
     if (!v) return;
@@ -152,11 +161,11 @@ export default function DealWorkspacePage() {
     setEditedAgreementText(v.agreement_text || '');
   }
 
-  // 1. Conversation Import Handler (Text / Chat)
+  // 1. Conversation Import Handler (Text / Chat / Image)
   async function handleImportConversation(e) {
     e.preventDefault();
     if (!pasteContent.trim() && !uploadFile) {
-      alert('Please provide conversation text or select a .txt file.');
+      alert('Please provide conversation text, paste chat, or select an image / .txt file.');
       return;
     }
 
@@ -166,7 +175,12 @@ export default function DealWorkspacePage() {
       const formData = new FormData();
       if (uploadFile) {
         formData.append('file', uploadFile);
-        formData.append('source_type', 'file_upload');
+        formData.append(
+          'source_type',
+          uploadType === 'image' || uploadFile.type?.startsWith('image/')
+            ? 'image_upload'
+            : 'file_upload'
+        );
       } else {
         formData.append('content', pasteContent.trim());
         formData.append('source_type', 'paste');
@@ -176,12 +190,119 @@ export default function DealWorkspacePage() {
       setConversations((prev) => [...prev, imported]);
       setPasteContent('');
       setUploadFile(null);
+      setImagePreview(null);
       // Reload activity
       api.getActivity(dealId).then(setActivityLogs).catch(() => {});
     } catch (err) {
       alert(err.message || 'Failed to import conversation.');
     } finally {
       setImporting(false);
+    }
+  }
+
+  // Live E-Signature Canvas Helpers
+  function getCanvasPos(canvas, e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY,
+    };
+  }
+
+  function startDrawing(e) {
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const pos = getCanvasPos(canvas, e);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    setIsDrawing(true);
+    setHasDrawn(true);
+  }
+
+  function draw(e) {
+    if (!isDrawing) return;
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const pos = getCanvasPos(canvas, e);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+  }
+
+  function stopDrawing() {
+    setIsDrawing(false);
+  }
+
+  function startDrawingTouch(e) {
+    if (e.touches && e.touches.length === 1) {
+      e.preventDefault();
+      const touch = e.touches[0];
+      const canvas = signatureCanvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const pos = getCanvasPos(canvas, touch);
+      ctx.beginPath();
+      ctx.moveTo(pos.x, pos.y);
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      setIsDrawing(true);
+      setHasDrawn(true);
+    }
+  }
+
+  function drawTouch(e) {
+    if (!isDrawing || !e.touches || e.touches.length !== 1) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const pos = getCanvasPos(canvas, touch);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+  }
+
+  function clearSignature() {
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setHasDrawn(false);
+  }
+
+  async function handleSignAgreement() {
+    if (!currentVersion) return;
+    const canvas = signatureCanvasRef.current;
+    if (!canvas || !hasDrawn) {
+      alert('Please draw your handwritten signature on the pad before stamping.');
+      return;
+    }
+
+    const dataUrl = canvas.toDataURL('image/png');
+    setSigningAgreement(true);
+    try {
+      const updatedV = await api.signAgreement(currentVersion.id, {
+        signature_image: dataUrl,
+        signer_name: user?.full_name || 'Participant',
+      });
+      setCurrentVersion(updatedV);
+      setVersions((prev) => prev.map((v) => (v.id === updatedV.id ? updatedV : v)));
+      // Refresh deal & activity
+      api.getDeal(dealId).then(setDeal).catch(() => {});
+      api.getActivity(dealId).then(setActivityLogs).catch(() => {});
+    } catch (err) {
+      alert(err.message || 'Failed to stamp live e-signature.');
+    } finally {
+      setSigningAgreement(false);
     }
   }
 
@@ -355,18 +476,22 @@ export default function DealWorkspacePage() {
     setSubmittingAction(true);
     try {
       // Build plain language agreement from analysis & clarifications
-      const workScopeText = analysis?.work_scope?.value || deal.description || 'To be specified';
-      const priceText = `${analysis?.price?.value || '25,000'} ${analysis?.currency?.value || deal.currency}`;
-      const timelineText = `Start: ${analysis?.start_date?.value || 'Immediate'}, Completion: ${analysis?.completion_deadline?.value || 'As agreed'}`;
-      const responsibilitiesText = analysis?.responsibilities?.value || 'Standard professional execution';
+      const workScopeText = analysis?.work_scope?.value || deal.description || 'Scope of deliverables to be mutually defined by parties.';
+      const priceText = analysis?.price?.value
+        ? `${analysis.price.value} ${analysis?.currency?.value || deal.currency}`
+        : 'Pending mutual agreement by parties';
+      const timelineText = (analysis?.start_date?.value || analysis?.completion_deadline?.value)
+        ? `Start: ${analysis.start_date?.value || 'Mutually agreed date'}, Completion: ${analysis.completion_deadline?.value || 'As agreed'}`
+        : 'Timeline to be mutually agreed by parties';
+      const responsibilitiesText = analysis?.responsibilities?.value || 'Mutual obligations to be specified by parties';
 
       const agreementJson = {
         work_scope: workScopeText,
         financial_terms: priceText,
         timeline: timelineText,
         responsibilities: responsibilitiesText,
-        delivery_acceptance: analysis?.delivery_acceptance_conditions?.value || 'Inspection upon completion',
-        cancellation_refunds: analysis?.cancellation_refund_conditions?.value || 'Mutual written agreement required',
+        delivery_acceptance: analysis?.delivery_acceptance_conditions?.value || 'Subject to mutual bilateral agreement',
+        cancellation_refunds: analysis?.cancellation_refund_conditions?.value || 'Requires bilateral written agreement',
         unresolved_terms: analysis?.unresolved_terms || [],
       };
 
@@ -856,7 +981,7 @@ export default function DealWorkspacePage() {
                 Import Business Conversation
               </h3>
               <p className="text-xs text-slate-500 mb-4">
-                Paste chat messages from WhatsApp, email threads, or notes. Or upload an exported <code>.txt</code> file.
+                Paste chat messages from WhatsApp, email threads, or notes. Or upload an image screenshot (<code>.png</code>, <code>.jpg</code>, <code>.webp</code>) or exported <code>.txt</code> file.
               </p>
 
               <form onSubmit={handleImportConversation} className="space-y-4">
@@ -864,7 +989,7 @@ export default function DealWorkspacePage() {
                   <textarea
                     id="textarea-import-content"
                     rows={4}
-                    placeholder="Example:&#10;[24/10/26, 10:00 AM] Rajesh: Can you finish painting before 30 October?&#10;[24/10/26, 10:02 AM] Sunil: Yes, total ₹25,000 for full shop painting.&#10;[24/10/26, 10:05 AM] Rajesh: 50% advance, 50% upon completion. Deal?&#10;[24/10/26, 10:06 AM] Sunil: Deal confirmed."
+                    placeholder="Example:&#10;[24/10/26, 10:00 AM] Rajesh: Can you complete the design work before 30 October?&#10;[24/10/26, 10:02 AM] Sunil: Yes, agreed on project scope and deliverables.&#10;[24/10/26, 10:05 AM] Rajesh: 50% advance upfront, balance upon completion. Deal?&#10;[24/10/26, 10:06 AM] Sunil: Confirmed, let's proceed."
                     value={pasteContent}
                     onChange={(e) => setPasteContent(e.target.value)}
                     className="w-full p-3 text-xs font-mono border border-slate-300 rounded-md focus:ring-1 focus:ring-navy-900 outline-none"
@@ -872,25 +997,69 @@ export default function DealWorkspacePage() {
                 </div>
 
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                  <div className="flex items-center space-x-2">
-                    <label className="cursor-pointer px-3 py-1.5 border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-medium rounded-md flex items-center space-x-1.5">
-                      <Upload className="w-3.5 h-3.5" />
-                      <span>{uploadFile ? uploadFile.name : 'Upload .txt File'}</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* 1. Upload Image Option */}
+                    <label className="cursor-pointer px-3 py-1.5 border border-purple-200 bg-purple-50/70 hover:bg-purple-100 text-purple-700 text-xs font-semibold rounded-md flex items-center space-x-1.5 transition-colors shadow-sm">
+                      <ImageIcon className="w-3.5 h-3.5 text-purple-600" />
+                      <span>Upload Chat Image / Screenshot</span>
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/jpg"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files[0];
+                          if (f) {
+                            setUploadFile(f);
+                            setUploadType('image');
+                            setImagePreview(URL.createObjectURL(f));
+                          }
+                        }}
+                      />
+                    </label>
+
+                    {/* 2. Upload .txt File Option */}
+                    <label className="cursor-pointer px-3 py-1.5 border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-medium rounded-md flex items-center space-x-1.5 transition-colors">
+                      <Upload className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Upload .txt File</span>
                       <input
                         type="file"
                         accept=".txt,.text,.chat"
                         className="hidden"
-                        onChange={(e) => setUploadFile(e.target.files[0] || null)}
+                        onChange={(e) => {
+                          const f = e.target.files[0];
+                          if (f) {
+                            setUploadFile(f);
+                            setUploadType('text');
+                            setImagePreview(null);
+                          }
+                        }}
                       />
                     </label>
+
+                    {/* Active Upload Badge & Thumbnail */}
                     {uploadFile && (
-                      <button
-                        type="button"
-                        onClick={() => setUploadFile(null)}
-                        className="text-slate-400 hover:text-slate-600 text-xs"
-                      >
-                        Remove
-                      </button>
+                      <div className="flex items-center space-x-2 px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-md text-xs">
+                        {imagePreview && (
+                          <img
+                            src={imagePreview}
+                            alt="Preview"
+                            className="w-6 h-6 object-cover rounded border border-slate-300"
+                          />
+                        )}
+                        <span className="font-medium text-slate-700 max-w-[140px] truncate">
+                          {uploadFile.name}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUploadFile(null);
+                            setImagePreview(null);
+                          }}
+                          className="text-slate-400 hover:text-red-600 font-bold ml-1"
+                        >
+                          ✕
+                        </button>
+                      </div>
                     )}
                   </div>
 
@@ -1146,6 +1315,11 @@ export default function DealWorkspacePage() {
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-100 text-blue-800">
                           🎙️ Call Recording
                         </span>
+                      ) : c.source_type === 'image_upload' || c.image_url ? (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-purple-100 text-purple-800 flex items-center space-x-1">
+                          <ImageIcon className="w-3 h-3 text-purple-600" />
+                          <span>Chat Image Screenshot</span>
+                        </span>
                       ) : (
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 text-slate-700">
                           💬 {c.source_type}
@@ -1157,6 +1331,25 @@ export default function DealWorkspacePage() {
                     </span>
                     <span>{new Date(c.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
                   </div>
+
+                  {/* Image Display if this is an image upload */}
+                  {c.image_url && (
+                    <div className="my-2 p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center space-x-3">
+                      <a href={c.image_url} target="_blank" rel="noopener noreferrer" title="View full image">
+                        <img
+                          src={c.image_url}
+                          alt="Uploaded chat screenshot"
+                          className="w-16 h-16 object-cover rounded border border-slate-300 hover:opacity-90 shadow-sm transition-opacity"
+                        />
+                      </a>
+                      <div className="text-xs">
+                        <p className="font-bold text-slate-800">Uploaded Chat / Document Screenshot</p>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          Gemini Vision multimodal OCR transcribed dialogue turns below. Click thumbnail to open image in new tab.
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Audio Player if this is an audio recording */}
                   {(c.audio_url || c.source_type === 'call_recording') && (
@@ -1218,20 +1411,34 @@ export default function DealWorkspacePage() {
             </button>
           </div>
 
+          {/* Notice banner if no conversation analysis exists */}
+          {!analysis && (
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 flex items-start space-x-2.5">
+              <Sparkles className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-slate-800">No AI analysis executed yet</p>
+                <p className="mt-0.5 text-slate-500">
+                  Authentic terms will populate here once you import chat screenshots, text exports, or call recordings and click "Analyze with AI". You can also draft the agreement directly.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Terms Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {[
-              { label: 'Work Scope & Deliverables', data: analysis?.work_scope, fallback: deal.description || 'To be specified' },
-              { label: 'Price & Compensation', data: analysis?.price, fallback: '25,000 INR' },
-              { label: 'Payment Terms & Schedule', data: analysis?.payment_terms, fallback: '50% advance, 50% upon completion' },
-              { label: 'Target Completion Deadline', data: analysis?.completion_deadline, fallback: '30 October 2026' },
-              { label: 'Responsibilities of Parties', data: analysis?.responsibilities, fallback: 'Vendor provides supplies; Client provides premises access' },
-              { label: 'Delivery & Acceptance Criteria', data: analysis?.delivery_acceptance_conditions, fallback: 'Joint physical walkthrough' },
+              { label: 'Work Scope & Deliverables', data: analysis?.work_scope, fallback: deal.description || 'Pending scope definition by parties' },
+              { label: 'Price & Compensation', data: analysis?.price, fallback: 'Not specified in conversation yet (Pending mutual agreement)' },
+              { label: 'Payment Terms & Schedule', data: analysis?.payment_terms, fallback: 'Not specified in conversation yet (Pending mutual agreement)' },
+              { label: 'Target Completion Deadline', data: analysis?.completion_deadline, fallback: 'Not specified in conversation yet (To be mutually agreed)' },
+              { label: 'Responsibilities of Parties', data: analysis?.responsibilities, fallback: 'Subject to mutual agreement by parties' },
+              { label: 'Delivery & Acceptance Criteria', data: analysis?.delivery_acceptance_conditions, fallback: 'Subject to mutual bilateral agreement' },
               { label: 'Cancellation & Refund Terms', data: analysis?.cancellation_refund_conditions, fallback: 'Requires bilateral written agreement' },
-              { label: 'Warranty & Revision Terms', data: analysis?.warranty_revision_terms, fallback: '30 days defect rectifications' },
+              { label: 'Warranty & Revision Terms', data: analysis?.warranty_revision_terms, fallback: 'Subject to mutual bilateral agreement' },
             ].map((term, i) => {
-              const status = term.data?.status || 'reviewed_by_participants';
-              const val = term.data?.value || term.fallback;
+              const hasData = Boolean(term.data && term.data.value);
+              const status = hasData ? (term.data.status || 'found_in_conversation') : 'not_specified';
+              const val = hasData ? term.data.value : term.fallback;
               const quote = term.data?.supporting_quote;
 
               return (
@@ -1243,13 +1450,14 @@ export default function DealWorkspacePage() {
                       status === 'conflicting' ? 'bg-red-50 text-red-700 border-red-200' :
                       status === 'unclear' ? 'bg-amber-50 text-amber-700 border-amber-200' :
                       status === 'missing' ? 'bg-slate-100 text-slate-600 border-slate-200' :
+                      status === 'not_specified' ? 'bg-slate-100 text-slate-500 border-slate-200' :
                       'bg-blue-50 text-blue-700 border-blue-200'
                     }`}>
-                      {status.replace(/_/g, ' ')}
+                      {status === 'not_specified' ? 'Not specified yet' : status.replace(/_/g, ' ')}
                     </span>
                   </div>
 
-                  <p className="text-xs text-slate-700 leading-relaxed font-medium">
+                  <p className={`text-xs leading-relaxed ${hasData ? 'text-slate-800 font-medium' : 'text-slate-400 italic'}`}>
                     {val}
                   </p>
 
@@ -1632,6 +1840,127 @@ export default function DealWorkspacePage() {
                           );
                         })}
                       </div>
+                    </div>
+
+                    {/* Section 7: Live Digital E-Signatures (On-Agreement Execution) */}
+                    <div className="pt-6 border-t border-slate-200">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-bold text-navy-900 uppercase tracking-wider text-[11px] flex items-center space-x-1.5">
+                          <PenTool className="w-3.5 h-3.5 text-blue-600" />
+                          <span>7. LIVE DIGITAL E-SIGNATURES (AUTHENTIC EXECUTION)</span>
+                        </h4>
+                        {currentVersion.is_mutually_confirmed ? (
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center space-x-1">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            <span>Mutually Accepted — Signing Unlocked</span>
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200 flex items-center space-x-1">
+                            <Clock className="w-3 h-3 text-amber-600" />
+                            <span>Locked until both parties accept agreement</span>
+                          </span>
+                        )}
+                      </div>
+
+                      {!currentVersion.is_mutually_confirmed ? (
+                        <div className="p-4 bg-slate-50 border border-dashed border-slate-300 rounded-lg text-center text-xs text-slate-500 space-y-1">
+                          <p className="font-semibold text-slate-700">Live E-Signatures will unlock automatically once both parties confirm and approve this agreement.</p>
+                          <p className="text-[11px] text-slate-400">Click "Confirm & Approve" at the top once you review and agree with the terms.</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {participants.map((p) => {
+                            const sig = currentVersion.agreement_json?.signatures?.[p.id];
+                            const isMe = (p.id === myParticipant?.id);
+
+                            return (
+                              <div key={p.id} className="p-4 bg-slate-50/80 border border-slate-200 rounded-xl space-y-3">
+                                <div className="flex justify-between items-center text-xs">
+                                  <span className="text-[10px] uppercase font-bold text-slate-400">
+                                    {p.role.toUpperCase()} SIGNATURE
+                                  </span>
+                                  {sig ? (
+                                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-800 flex items-center space-x-1">
+                                      <Check className="w-3 h-3 text-emerald-600" />
+                                      <span>Digitally Signed</span>
+                                    </span>
+                                  ) : (
+                                    <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-amber-100 text-amber-800">
+                                      Signature Pending
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="text-xs font-bold text-slate-900">
+                                  {p.full_name || p.email || 'Participant'}
+                                </div>
+
+                                {/* Display signed authentic signature */}
+                                {sig ? (
+                                  <div className="p-3 bg-white border border-slate-200 rounded-lg space-y-2">
+                                    <div className="bg-slate-50 p-2 rounded flex items-center justify-center border border-dashed border-slate-200 min-h-[60px]">
+                                      <img
+                                        src={sig.signature_image}
+                                        alt={`${p.full_name || 'Participant'} Signature`}
+                                        className="max-h-16 object-contain"
+                                      />
+                                    </div>
+                                    <div className="text-[10px] text-slate-500 space-y-0.5 pt-1 border-t border-slate-100">
+                                      <p><strong>Signed by:</strong> {sig.signer_name}</p>
+                                      <p><strong>Timestamp:</strong> {new Date(sig.signed_at).toLocaleString()}</p>
+                                      <p className="font-mono text-[9px] text-blue-700"><strong>Seal:</strong> {sig.stamp_id}</p>
+                                    </div>
+                                  </div>
+                                ) : isMe ? (
+                                  /* Live Interactive Signature Pad for current user */
+                                  <div className="space-y-2">
+                                    <p className="text-[11px] text-slate-600 font-medium">
+                                      Draw your signature below using mouse, stylus, or touchscreen:
+                                    </p>
+                                    <div className="bg-white border-2 border-dashed border-blue-400 rounded-lg overflow-hidden shadow-inner">
+                                      <canvas
+                                        ref={signatureCanvasRef}
+                                        width={340}
+                                        height={110}
+                                        className="w-full h-24 cursor-crosshair touch-none bg-white block"
+                                        onMouseDown={startDrawing}
+                                        onMouseMove={draw}
+                                        onMouseUp={stopDrawing}
+                                        onMouseLeave={stopDrawing}
+                                        onTouchStart={startDrawingTouch}
+                                        onTouchMove={drawTouch}
+                                        onTouchEnd={stopDrawing}
+                                      />
+                                    </div>
+                                    <div className="flex items-center justify-between pt-1">
+                                      <button
+                                        type="button"
+                                        onClick={clearSignature}
+                                        className="px-2.5 py-1 text-slate-500 hover:text-slate-700 text-xs font-medium rounded hover:bg-slate-100 transition-colors"
+                                      >
+                                        Clear Pad
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={handleSignAgreement}
+                                        disabled={signingAgreement}
+                                        className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-md shadow-sm disabled:opacity-50 flex items-center space-x-1.5 transition-colors"
+                                      >
+                                        <PenTool className="w-3.5 h-3.5" />
+                                        <span>{signingAgreement ? 'Stamping Seal...' : 'Stamp Live E-Signature'}</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="p-6 bg-white/60 border border-slate-200 rounded-lg text-center text-xs text-slate-400">
+                                    Awaiting live handwritten e-signature from {p.full_name || 'counterparty'}.
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
 
                     {/* Statutory Disclaimer */}

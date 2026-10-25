@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
@@ -33,11 +33,7 @@ export default function DashboardPage({ onOpenNewDeal }) {
   const [errorMsg, setErrorMsg] = useState('');
   const [deletingId, setDeletingId] = useState(null);
 
-  useEffect(() => {
-    loadDashboardData();
-  }, [categoryFilter, statusFilter]);
-
-  async function loadDashboardData() {
+  const loadDashboardData = useCallback(async () => {
     setLoading(true);
     setErrorMsg('');
     try {
@@ -56,7 +52,11 @@ export default function DashboardPage({ onOpenNewDeal }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [categoryFilter, statusFilter, searchQuery]);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
 
   function handleSearchSubmit(e) {
     e.preventDefault();

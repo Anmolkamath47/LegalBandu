@@ -452,18 +452,23 @@ Analyze the transcript thoroughly. Return strictly valid JSON with no markdown b
         try:
             from google import genai
             client = genai.Client(api_key=settings.GEMINI_API_KEY)
-            response = client.models.generate_content(
-                model=settings.GEMINI_MODEL,
-                contents=prompt,
-            )
-            raw_text = response.text
+            for candidate_model in [settings.GEMINI_MODEL, "gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-3.8-flash"]:
+                try:
+                    response = client.models.generate_content(
+                        model=candidate_model,
+                        contents=prompt,
+                    )
+                    if response.text and response.text.strip():
+                        raw_text = response.text
+                        break
+                except Exception as model_err:
+                    logger.debug(f"Candidate model {candidate_model} failed ({model_err}); trying next.")
+                    continue
         except Exception as e_new:
-            logger.debug(f"google.genai call attempt failed ({e_new}), trying google.generativeai")
-            import google.generativeai as genai_legacy
-            genai_legacy.configure(api_key=settings.GEMINI_API_KEY)
-            model = genai_legacy.GenerativeModel("gemini-1.5-flash")
-            response = model.generate_content(prompt)
-            raw_text = response.text
+            logger.debug(f"google.genai call attempt failed ({e_new})")
+
+        if not raw_text:
+            raise ValueError("No Gemini model was able to produce a completion")
 
         # Clean JSON from markdown fences if any
         cleaned = raw_text.strip()

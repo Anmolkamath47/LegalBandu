@@ -63,7 +63,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin', onS
           signUp(cleanEmail, password, fullName.trim()),
           timeoutPromise
         ]);
-        onSuccess && onSuccess();
+        if (onSuccess) onSuccess();
         onClose();
       } else {
         // Sign In
@@ -71,7 +71,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin', onS
           signIn(cleanEmail, password),
           timeoutPromise
         ]);
-        onSuccess && onSuccess();
+        if (onSuccess) onSuccess();
         onClose();
       }
     } catch (err) {

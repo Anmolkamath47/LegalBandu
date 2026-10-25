@@ -38,6 +38,8 @@ def register_user(data: RegisterRequest, db: Session = Depends(get_db)):
     full_name = (data.full_name or "").strip() or clean_email.split("@")[0]
 
     # Try Supabase Auth first if configured
+    user_id = None
+    token = None
     if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY:
         try:
             from supabase import create_client
@@ -45,51 +47,62 @@ def register_user(data: RegisterRequest, db: Session = Depends(get_db)):
             
             # Create user with auto-confirmed email
             try:
-                client.auth.admin.create_user({
+                create_res = client.auth.admin.create_user({
                     "email": clean_email,
                     "password": data.password,
                     "email_confirm": True,
                     "user_metadata": {"full_name": full_name, "email": clean_email},
                 })
+                if create_res and hasattr(create_res, "user") and create_res.user:
+                    user_id = str(create_res.user.id)
             except Exception as ce:
                 logger.info(f"Supabase admin create_user notice: {ce}")
 
             # Sign in to get session
-            login_res = client.auth.sign_in_with_password({
-                "email": clean_email,
-                "password": data.password,
-            })
-            if login_res.session:
-                user_id = str(login_res.user.id)
-                token = login_res.session.access_token
+            try:
+                login_res = client.auth.sign_in_with_password({
+                    "email": clean_email,
+                    "password": data.password,
+                })
+                if login_res.session:
+                    user_id = str(login_res.user.id)
+                    token = login_res.session.access_token
+            except Exception as le:
+                logger.debug(f"Supabase sign in notice: {le}")
 
-                # Sync Profile in database
-                profile = db.query(Profile).filter(Profile.id == user_id).first()
-                if not profile:
-                    profile = Profile(id=user_id, full_name=full_name)
-                    db.add(profile)
-                    db.commit()
+            # If create_user succeeded or user already exists, lookup by email
+            if not user_id:
+                try:
+                    for u in client.auth.admin.list_users():
+                        if u.email and u.email.lower() == clean_email:
+                            user_id = str(u.id)
+                            break
+                except Exception:
+                    pass
 
-                return AuthResponse(
-                    access_token=token,
-                    token_type="bearer",
-                    user=UserProfile(id=user_id, email=clean_email, full_name=full_name),
-                )
         except Exception as se:
             logger.warning(f"Supabase auth registration fallback: {se}")
 
-    # Fallback to local deterministic UUID & signed JWT
-    user_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, clean_email))
-    profile = db.query(Profile).filter(Profile.id == user_id).first()
-    if not profile:
-        profile = Profile(id=user_id, full_name=full_name)
-        db.add(profile)
-        db.commit()
-    elif full_name and profile.full_name != full_name:
-        profile.full_name = full_name
-        db.commit()
+    # Fallback to deterministic UUID if not connected to Supabase
+    if not user_id:
+        user_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, clean_email))
+    if not token:
+        token = _issue_signed_token(user_id, clean_email, full_name)
 
-    token = _issue_signed_token(user_id, clean_email, full_name)
+    # Sync Profile in database
+    try:
+        profile = db.query(Profile).filter(Profile.id == user_id).first()
+        if not profile:
+            profile = Profile(id=user_id, full_name=full_name)
+            db.add(profile)
+            db.commit()
+        elif full_name and profile.full_name != full_name:
+            profile.full_name = full_name
+            db.commit()
+    except Exception as pe:
+        db.rollback()
+        logger.warning(f"Profile sync notice: {pe}")
+
     return AuthResponse(
         access_token=token,
         token_type="bearer",
@@ -103,54 +116,62 @@ def login_user(data: LoginRequest, db: Session = Depends(get_db)):
     Signs in a user with email and password and returns an active session token.
     """
     clean_email = data.email.strip().lower()
+    user_id = None
+    token = None
+    full_name = clean_email.split("@")[0]
 
     if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY:
         try:
             from supabase import create_client
             client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
-            login_res = client.auth.sign_in_with_password({
-                "email": clean_email,
-                "password": data.password,
-            })
-            if login_res.session:
-                user_id = str(login_res.user.id)
-                token = login_res.session.access_token
+            try:
+                login_res = client.auth.sign_in_with_password({
+                    "email": clean_email,
+                    "password": data.password,
+                })
+                if login_res.session:
+                    user_id = str(login_res.user.id)
+                    token = login_res.session.access_token
+                    full_name = login_res.user.user_metadata.get("full_name") or full_name
+            except Exception as e:
+                err_str = str(e).lower()
+                if "invalid login credentials" in err_str or "invalid credentials" in err_str:
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Invalid email or password. Please verify your credentials or create a new account.",
+                    )
+                logger.warning(f"Supabase login notice: {e}, attempting admin lookup")
 
-                profile = db.query(Profile).filter(Profile.id == user_id).first()
-                full_name = (
-                    profile.full_name
-                    if profile and profile.full_name
-                    else login_res.user.user_metadata.get("full_name", clean_email.split("@")[0])
-                )
-                if not profile:
-                    profile = Profile(id=user_id, full_name=full_name)
-                    db.add(profile)
-                    db.commit()
-
-                return AuthResponse(
-                    access_token=token,
-                    token_type="bearer",
-                    user=UserProfile(id=user_id, email=clean_email, full_name=full_name),
-                )
+            if not user_id:
+                try:
+                    for u in client.auth.admin.list_users():
+                        if u.email and u.email.lower() == clean_email:
+                            user_id = str(u.id)
+                            full_name = (u.user_metadata or {}).get("full_name") or full_name
+                            break
+                except Exception:
+                    pass
+        except HTTPException:
+            raise
         except Exception as e:
-            err_str = str(e).lower()
-            if "invalid login credentials" in err_str or "invalid credentials" in err_str:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid email or password. Please verify your credentials or create a new account.",
-                )
-            logger.warning(f"Supabase login notice: {e}, falling back to database check")
+            logger.warning(f"Supabase login notice: {e}")
 
     # Fallback to local signed token for existing profile or auto-setup
-    user_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, clean_email))
-    profile = db.query(Profile).filter(Profile.id == user_id).first()
-    full_name = profile.full_name if profile else clean_email.split("@")[0]
-    if not profile:
-        profile = Profile(id=user_id, full_name=full_name)
-        db.add(profile)
-        db.commit()
+    if not user_id:
+        user_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, clean_email))
+    try:
+        profile = db.query(Profile).filter(Profile.id == user_id).first()
+        full_name = profile.full_name if profile else clean_email.split("@")[0]
+        if not profile:
+            profile = Profile(id=user_id, full_name=full_name)
+            db.add(profile)
+            db.commit()
+    except Exception as pe:
+        db.rollback()
+        logger.warning(f"Profile sync during login notice: {pe}")
 
-    token = _issue_signed_token(user_id, clean_email, full_name)
+    if not token:
+        token = _issue_signed_token(user_id, clean_email, full_name)
     return AuthResponse(
         access_token=token,
         token_type="bearer",
