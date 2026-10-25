@@ -14,6 +14,7 @@ from .routers import (
     amendments_router,
     activity_router,
     notifications_router,
+    bonds_router,
 )
 
 
@@ -58,6 +59,7 @@ app.include_router(agreements_router, prefix=settings.API_V1_PREFIX)
 app.include_router(amendments_router, prefix=settings.API_V1_PREFIX)
 app.include_router(activity_router, prefix=settings.API_V1_PREFIX)
 app.include_router(notifications_router, prefix=settings.API_V1_PREFIX)
+app.include_router(bonds_router, prefix=settings.API_V1_PREFIX)
 
 
 @app.get("/")

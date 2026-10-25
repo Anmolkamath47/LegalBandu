@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { 
@@ -7,11 +7,7 @@ import {
   Bell, 
   User, 
   LogOut, 
-  CheckCircle2, 
-  ShieldCheck,
-  ChevronDown,
-  Menu,
-  X
+  ChevronDown
 } from 'lucide-react';
 import NotificationsMenu from './NotificationsMenu';
 
@@ -21,7 +17,6 @@ export default function Navbar({ onOpenNewDeal, onOpenAuth, onOpenProfile }) {
   const location = useLocation();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const displayName = profile?.full_name || user?.full_name || user?.email?.split('@')[0] || 'User';
 
@@ -121,7 +116,7 @@ export default function Navbar({ onOpenNewDeal, onOpenAuth, onOpenProfile }) {
                       <button
                         onClick={() => {
                           setShowUserMenu(false);
-                          onOpenProfile && onOpenProfile();
+                          if (onOpenProfile) onOpenProfile();
                         }}
                         className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center space-x-2"
                       >

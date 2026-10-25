@@ -1,24 +1,20 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { 
-  FileText, 
   ArrowRight, 
-  ShieldCheck, 
-  MessageSquare, 
-  CheckCircle2, 
-  Clock, 
   GitCommit, 
   Download, 
   AlertTriangle,
   Scale,
-  Sparkles,
-  Users
+  Users,
+  Mic,
+  ShieldAlert,
+  CheckCircle2,
+  Clock
 } from 'lucide-react';
 
 export default function LandingPage({ onOpenAuth, onOpenNewDeal }) {
   const { user } = useAuth();
-  const navigate = useNavigate();
 
   function handlePrimaryCTA() {
     if (user) {
@@ -217,6 +213,27 @@ export default function LandingPage({ onOpenAuth, onOpenNewDeal }) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="p-6 bg-white rounded-lg border border-slate-200 shadow-sm">
               <div className="w-8 h-8 rounded bg-blue-100 text-blue-700 flex items-center justify-center mb-3">
+                <Mic className="w-4 h-4" />
+              </div>
+              <h3 className="text-sm font-bold text-navy-900">1. Call Recording to Agreement</h3>
+              <p className="mt-2 text-xs text-slate-600 leading-relaxed">
+                Record phone calls with live mic or upload audio recordings (.mp3, .wav, .m4a, .webm). 
+                AI transcribes dialogue turns and extracts scope, pricing, and deadlines directly into agreement clauses.
+              </p>
+            </div>
+
+            <div className="p-6 bg-white rounded-lg border border-slate-200 shadow-sm">
+              <div className="w-8 h-8 rounded bg-amber-100 text-amber-700 flex items-center justify-center mb-3">
+                <Scale className="w-4 h-4" />
+              </div>
+              <h3 className="text-sm font-bold text-navy-900">2. Bond Upload & AI Detector</h3>
+              <p className="mt-2 text-xs text-slate-600 leading-relaxed">
+                Upload indemnity bonds, surety deeds, or e-stamps. Multi-vector algorithmic scanner instantly flags ChatGPT/synthetic AI text with immediate alerts and converts covenants into mutual contracts.
+              </p>
+            </div>
+
+            <div className="p-6 bg-white rounded-lg border border-slate-200 shadow-sm">
+              <div className="w-8 h-8 rounded bg-blue-100 text-blue-700 flex items-center justify-center mb-3">
                 <Users className="w-4 h-4" />
               </div>
               <h3 className="text-sm font-bold text-navy-900">True Bilateral Approval</h3>
@@ -235,13 +252,13 @@ export default function LandingPage({ onOpenAuth, onOpenNewDeal }) {
               </p>
             </div>
 
-            <div className="p-6 bg-white rounded-lg border border-slate-200 shadow-sm">
+            <div className="p-6 bg-white rounded-lg border border-slate-200 shadow-sm md:col-span-2">
               <div className="w-8 h-8 rounded bg-slate-100 text-slate-700 flex items-center justify-center mb-3">
                 <Download className="w-4 h-4" />
               </div>
               <h3 className="text-sm font-bold text-navy-900">ReportLab Legal PDF Export</h3>
               <p className="mt-2 text-xs text-slate-600 leading-relaxed">
-                Download cleanly formatted, plain-language PDF documents complete with party identification, clause breakdown, timestamped approval stamps, and verification seals.
+                Download cleanly formatted, plain-language PDF documents complete with party identification, clause breakdown, timestamped approval stamps, and cryptographic verification seals.
               </p>
             </div>
           </div>

@@ -26,11 +26,11 @@ def submit_clarification(
     deal = db.query(Deal).filter(Deal.id == deal_id).first()
 
     clarification = ClarificationAnswer(
-        deal_id=deal.id,
+        deal_id=str(deal.id),
         field_name=data.field_name,
         question=data.question,
         answer=data.answer,
-        answered_by=current_user.id,
+        answered_by=str(current_user.id),
     )
     db.add(clarification)
     db.commit()
@@ -39,11 +39,11 @@ def submit_clarification(
     # Tamper-evident audit log
     record_activity(
         db=db,
-        deal_id=deal.id,
-        actor_id=current_user.id,
+        deal_id=str(deal.id),
+        actor_id=str(current_user.id),
         event_type="clarification_answered",
         event_data={
-            "clarification_id": clarification.id,
+            "clarification_id": str(clarification.id),
             "field_name": data.field_name,
             "answer_preview": data.answer[:100],
         },
@@ -117,17 +117,17 @@ def update_clarification(
     verify_deal_participant(clarification.deal_id, current_user, db)
 
     clarification.answer = data.answer
-    clarification.answered_by = current_user.id
+    clarification.answered_by = str(current_user.id)
     db.commit()
     db.refresh(clarification)
 
     record_activity(
         db=db,
-        deal_id=clarification.deal_id,
-        actor_id=current_user.id,
+        deal_id=str(clarification.deal_id),
+        actor_id=str(current_user.id),
         event_type="clarification_updated",
         event_data={
-            "clarification_id": clarification.id,
+            "clarification_id": str(clarification.id),
             "field_name": clarification.field_name,
             "updated_answer_preview": data.answer[:100],
         },

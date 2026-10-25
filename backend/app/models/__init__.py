@@ -13,6 +13,7 @@ from .models import (
     Amendment,
     ActivityLog,
     Notification,
+    BondDocument,
 )
 
 __all__ = [
@@ -30,4 +31,5 @@ __all__ = [
     "Amendment",
     "ActivityLog",
     "Notification",
+    "BondDocument",
 ]

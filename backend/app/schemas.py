@@ -152,6 +152,9 @@ class ConversationOut(BaseModel):
     uploaded_by_name: Optional[str] = None
     source_type: str
     original_content: str
+    audio_url: Optional[str] = None
+    audio_filename: Optional[str] = None
+    audio_duration: Optional[int] = None
     messages: List[MessageOut] = []
     created_at: datetime
 
@@ -365,4 +368,40 @@ class NotificationOut(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ==========================================
+# Bond Documents & AI Detector
+# ==========================================
+class AIMarker(BaseModel):
+    marker_type: str
+    severity: str
+    description: str
+    excerpt: Optional[str] = None
+
+
+class BondDocumentOut(BaseModel):
+    id: StrId
+    deal_id: StrId
+    uploaded_by: StrId
+    uploaded_by_name: Optional[str] = None
+    filename: str
+    file_type: str
+    bond_type: str
+    document_text: str
+    is_ai_generated: bool
+    ai_detection_score: float
+    ai_verdict: str
+    ai_confidence: str
+    ai_markers: List[Dict[str, Any]] = []
+    ai_alert_triggered: bool
+    extracted_terms: Dict[str, Any] = {}
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BondDocumentCreate(BaseModel):
+    bond_type: Optional[str] = "Legal Bond"
+    content: Optional[str] = None
 

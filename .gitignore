@@ -24,3 +24,8 @@ dist/
 Thumbs.db
 .vscode/
 .idea/
+
+# Uploads
+backend/uploads/
+uploads/
+

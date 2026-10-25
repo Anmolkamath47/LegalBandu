@@ -141,6 +141,19 @@ export const api = {
   }),
   getLatestAnalysis: (dealId) => request(`/deals/${dealId}/analyses/latest`),
 
+  // Legal Bonds & AI Detection
+  getBonds: (dealId) => request(`/deals/${dealId}/bonds`),
+  uploadBond: (dealId, formData) => request(`/deals/${dealId}/bonds`, {
+    method: 'POST',
+    body: formData,
+  }),
+  deleteBond: (dealId, bondId) => request(`/deals/${dealId}/bonds/${bondId}`, {
+    method: 'DELETE',
+  }),
+  applyBondToAgreement: (dealId, bondId) => request(`/deals/${dealId}/bonds/${bondId}/apply-to-agreement`, {
+    method: 'POST',
+  }),
+
   // Clarifications
   getClarifications: (dealId) => request(`/deals/${dealId}/clarifications`),
   submitClarification: (dealId, payload) => request(`/deals/${dealId}/clarifications`, {

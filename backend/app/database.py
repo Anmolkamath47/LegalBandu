@@ -69,6 +69,7 @@ if DATABASE_URL:
     engine = create_engine(
         DATABASE_URL,
         pool_pre_ping=True,
+        pool_recycle=300,
         json_serializer=json_serializer_with_uuid,
     )
 else:
@@ -94,6 +95,27 @@ def init_db():
         with engine.connect() as conn:
             pass
         Base.metadata.create_all(bind=engine)
+        # Safely ensure new audio columns exist on PostgreSQL/SQLite
+        try:
+            with engine.connect() as conn:
+                from sqlalchemy import text
+                if engine.dialect.name == "sqlite":
+                    cols = [row[1] for row in conn.execute(text("PRAGMA table_info(conversations);")).fetchall()]
+                    if "audio_url" not in cols:
+                        conn.execute(text("ALTER TABLE conversations ADD COLUMN audio_url VARCHAR(500);"))
+                    if "audio_filename" not in cols:
+                        conn.execute(text("ALTER TABLE conversations ADD COLUMN audio_filename VARCHAR(255);"))
+                    if "audio_duration" not in cols:
+                        conn.execute(text("ALTER TABLE conversations ADD COLUMN audio_duration INTEGER;"))
+                    conn.commit()
+                else:
+                    conn.execute(text("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS audio_url VARCHAR(500);"))
+                    conn.execute(text("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS audio_filename VARCHAR(255);"))
+                    conn.execute(text("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS audio_duration INTEGER;"))
+                    conn.execute(text("ALTER TABLE conversations DROP CONSTRAINT IF EXISTS conversations_source_type_check;"))
+                    conn.commit()
+        except Exception as mig_err:
+            logger.debug(f"Column check notice: {mig_err}")
     except Exception as e:
         masked_url = str(engine.url)
         if engine.url.password:

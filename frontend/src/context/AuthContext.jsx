@@ -37,7 +37,7 @@ export function AuthProvider({ children }) {
           fetchProfile(savedAuthToken).catch(() => {});
           setLoading(false);
           return;
-        } catch (e) {
+        } catch {
           localStorage.removeItem('lb_auth_token');
           localStorage.removeItem('lb_auth_user');
         }
@@ -88,10 +88,7 @@ export function AuthProvider({ children }) {
         setProfile(me);
       }
     } catch (err) {
-      console.warn('Could not load user profile:', err);
-      if (err.status === 401) {
-        signOut();
-      }
+      console.warn('Could not load user profile in background:', err);
     }
   }
 

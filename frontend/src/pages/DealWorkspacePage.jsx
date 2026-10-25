@@ -11,30 +11,34 @@ import {
   GitCommit, 
   Download, 
   UserPlus, 
-  Share2, 
   Upload, 
-  Send, 
   Sparkles, 
   Edit3, 
   Check, 
   X, 
   AlertTriangle,
-  RotateCcw,
   ShieldCheck,
-  ChevronRight,
   MessageCircle,
   HelpCircle,
-  Plus
+  Mic,
+  Scale,
+  ShieldAlert,
+  FileCheck2,
+  ChevronRight
 } from 'lucide-react';
 import InviteModal from '../components/InviteModal';
+import AIDetectorAlertModal from '../components/AIDetectorAlertModal';
+import AudioPlayerWidget from '../components/AudioPlayerWidget';
+import AudioCallRecorder from '../components/AudioCallRecorder';
+import BondUploadWidget from '../components/BondUploadWidget';
 
 export default function DealWorkspacePage() {
   const { dealId } = useParams();
   const navigate = useNavigate();
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
 
   const [deal, setDeal] = useState(null);
-  const [activeTab, setActiveTab] = useState('conversations'); // conversations | terms | agreement | amendments | audit
+  const [activeTab, setActiveTab] = useState('conversations'); // conversations | terms | agreement | amendments | audit | bonds
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -42,6 +46,16 @@ export default function DealWorkspacePage() {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showChangeRequestModal, setShowChangeRequestModal] = useState(false);
   const [changeRequestComment, setChangeRequestComment] = useState('');
+
+  // Conversation Input Sub-mode: 'chat' | 'call_recording' | 'bond_detector'
+  const [convInputMode, setConvInputMode] = useState('chat');
+
+  // Bonds & AI Detector State
+  const [bonds, setBonds] = useState([]);
+  const [alertBond, setAlertBond] = useState(null);
+  const [showAlertModal, setShowAlertModal] = useState(false);
+  const [scanningBond, setScanningBond] = useState(false);
+  const [applyingBond, setApplyingBond] = useState(false);
 
   // Conversations State
   const [conversations, setConversations] = useState([]);
@@ -97,13 +111,14 @@ export default function DealWorkspacePage() {
       setDeal(dealData);
 
       // Concurrently load workspace resources
-      const [convs, latestAnalysis, clars, vers, amends, logs] = await Promise.all([
+      const [convs, latestAnalysis, clars, vers, amends, logs, bondList] = await Promise.all([
         api.getConversations(dealId).catch(() => []),
         api.getLatestAnalysis(dealId).catch(() => null),
         api.getClarifications(dealId).catch(() => []),
         api.getAgreements(dealId).catch(() => []),
         api.getAmendments(dealId).catch(() => []),
         api.getActivity(dealId).catch(() => []),
+        api.getBonds(dealId).catch(() => []),
       ]);
 
       setConversations(convs || []);
@@ -112,6 +127,7 @@ export default function DealWorkspacePage() {
       setVersions(vers || []);
       setAmendments(amends || []);
       setActivityLogs(logs || []);
+      setBonds(bondList || []);
 
       if (vers && vers.length > 0) {
         // Select the version matching current_version_id or latest
@@ -136,7 +152,7 @@ export default function DealWorkspacePage() {
     setEditedAgreementText(v.agreement_text || '');
   }
 
-  // 1. Conversation Import Handler
+  // 1. Conversation Import Handler (Text / Chat)
   async function handleImportConversation(e) {
     e.preventDefault();
     if (!pasteContent.trim() && !uploadFile) {
@@ -166,6 +182,110 @@ export default function DealWorkspacePage() {
       alert(err.message || 'Failed to import conversation.');
     } finally {
       setImporting(false);
+    }
+  }
+
+  // 1b. Call Recording & Audio Analysis Handler
+  async function handleImportAudio({ file, transcript }) {
+    setImporting(true);
+    setAiErrorMsg('');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('source_type', 'call_recording');
+      if (transcript) {
+        formData.append('content', transcript);
+      }
+
+      const imported = await api.importConversation(dealId, formData);
+      setConversations((prev) => [...prev, imported]);
+
+      // Automatically refresh AI analysis, deal status, and agreement version with extracted key points
+      const [freshAnalysis, freshAgreements, freshDeal] = await Promise.all([
+        api.getLatestAnalysis(dealId).catch(() => null),
+        api.getAgreements(dealId).catch(() => []),
+        api.getDeal(dealId).catch(() => null),
+      ]);
+
+      if (freshAnalysis?.analysis) setAnalysis(freshAnalysis.analysis);
+      if (freshAgreements && freshAgreements.length > 0) {
+        setVersions(freshAgreements);
+        setCurrentVersion(freshAgreements[0]);
+        initEditFields(freshAgreements[0]);
+        // Immediately show the mutual agreement with the AI-extracted key points!
+        setActiveTab('agreement');
+      }
+      if (freshDeal) setDeal(freshDeal);
+
+      api.getActivity(dealId).then(setActivityLogs).catch(() => {});
+    } catch (err) {
+      alert(err.message || 'Failed to analyze call recording.');
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  // 1c. Bond Upload & AI Detector Handler
+  async function handleUploadBond(formData) {
+    setScanningBond(true);
+    try {
+      const uploadedBond = await api.uploadBond(dealId, formData);
+      setBonds((prev) => [uploadedBond, ...prev]);
+
+      // IMMEDIATELY TRIGGER ALERT IF DETECTED AS AI
+      if (uploadedBond.is_ai_generated || uploadedBond.ai_alert_triggered) {
+        setAlertBond(uploadedBond);
+        setShowAlertModal(true);
+      }
+
+      api.getActivity(dealId).then(setActivityLogs).catch(() => {});
+    } catch (err) {
+      alert(err.message || 'Failed to scan and upload bond document.');
+    } finally {
+      setScanningBond(false);
+    }
+  }
+
+  // 1d. Convert Bond into Agreement Version
+  async function handleApplyBondToAgreement(bondId) {
+    setApplyingBond(true);
+    try {
+      const res = await api.applyBondToAgreement(dealId, bondId);
+      setShowAlertModal(false);
+
+      // Refresh agreements and deal info
+      const [vers, freshDeal] = await Promise.all([
+        api.getAgreements(dealId).catch(() => []),
+        api.getDeal(dealId).catch(() => null),
+      ]);
+
+      if (vers && vers.length > 0) {
+        setVersions(vers);
+        const latest = vers[0];
+        setCurrentVersion(latest);
+        initEditFields(latest);
+      }
+      if (freshDeal) setDeal(freshDeal);
+
+      setActiveTab('agreement');
+      api.getActivity(dealId).then(setActivityLogs).catch(() => {});
+      alert(res.message || 'Bond terms successfully integrated into agreement!');
+    } catch (err) {
+      alert(err.message || 'Failed to apply bond terms to agreement.');
+    } finally {
+      setApplyingBond(false);
+    }
+  }
+
+  // 1e. Delete Bond
+  async function handleDeleteBond(bondId) {
+    if (!confirm('Are you sure you want to remove this bond document from the deal room?')) return;
+    try {
+      await api.deleteBond(dealId, bondId);
+      setBonds((prev) => prev.filter((b) => b.id !== bondId));
+      api.getActivity(dealId).then(setActivityLogs).catch(() => {});
+    } catch (err) {
+      alert(err.message || 'Failed to delete bond.');
     }
   }
 
@@ -508,11 +628,33 @@ export default function DealWorkspacePage() {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center space-x-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <button
+            id="btn-header-record-call"
+            onClick={() => setActiveTab('call_recording')}
+            className="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-semibold rounded-md shadow-sm flex items-center space-x-1.5 transition-colors"
+            title="Record call or upload audio to auto-draft agreement key points"
+          >
+            <Mic className="w-4 h-4 text-blue-600" />
+            <span>🎙️ Record Call</span>
+          </button>
+
+          <button
+            id="btn-header-upload-bond"
+            onClick={() => {
+              setActiveTab('bonds');
+            }}
+            className="px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-semibold rounded-md shadow-sm flex items-center space-x-1.5 transition-colors"
+            title="Upload legal bond to run multi-vector AI detector scan"
+          >
+            <Scale className="w-4 h-4 text-amber-600" />
+            <span>📜 Verify Bond (AI Scan)</span>
+          </button>
+
           <button
             id="btn-invite-counterparty"
             onClick={() => setShowInviteModal(true)}
-            className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-semibold rounded-md shadow-sm flex items-center space-x-1.5 transition-colors"
+            className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-semibold rounded-md shadow-sm flex items-center space-x-1.5 transition-colors"
           >
             <UserPlus className="w-4 h-4 text-blue-600" />
             <span>{hasCounterpartyJoined ? 'Invite Link' : 'Invite Counterparty'}</span>
@@ -522,7 +664,7 @@ export default function DealWorkspacePage() {
             <button
               id="btn-download-pdf"
               onClick={handleDownloadPdf}
-              className="px-3.5 py-2 bg-navy-900 hover:bg-navy-800 text-white text-xs font-semibold rounded-md shadow-sm flex items-center space-x-1.5 transition-colors"
+              className="px-3 py-2 bg-navy-900 hover:bg-navy-800 text-white text-xs font-semibold rounded-md shadow-sm flex items-center space-x-1.5 transition-colors"
             >
               <Download className="w-4 h-4" />
               <span>Download PDF</span>
@@ -585,9 +727,121 @@ export default function DealWorkspacePage() {
         </div>
       </div>
 
+      {/* 2 Primary Core Features Quick-Action Hub */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Feature 1: Call Recording to Agreement */}
+        <div 
+          onClick={() => setActiveTab('call_recording')}
+          className={`cursor-pointer rounded-xl p-4.5 border transition-all ${
+            activeTab === 'call_recording'
+              ? 'bg-blue-900/10 border-blue-600 shadow-md ring-2 ring-blue-500/30'
+              : 'bg-white hover:bg-blue-50/40 border-slate-200 hover:border-blue-300 shadow-sm'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2.5">
+              <span className="p-2.5 bg-blue-100 text-blue-700 rounded-lg">
+                <Mic className="w-5 h-5 text-blue-600" />
+              </span>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                  FEATURE 1
+                </span>
+                <h4 className="text-sm font-bold text-navy-900 mt-0.5">
+                  Call Recording & AI Key Points
+                </h4>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveTab('call_recording');
+              }}
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-md shadow-sm transition-colors flex items-center space-x-1"
+            >
+              <span>{activeTab === 'call_recording' ? 'Active View' : 'Open Recorder'}</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <p className="text-xs text-slate-600 mt-2.5">
+            Record phone calls or upload audio files (.mp3, .wav, .m4a, .webm). AI analyzes dialogue and drafts agreement key points directly.
+          </p>
+        </div>
+
+        {/* Feature 2: Bond Upload & AI Detector */}
+        <div 
+          onClick={() => setActiveTab('bonds')}
+          className={`cursor-pointer rounded-xl p-4.5 border transition-all ${
+            activeTab === 'bonds'
+              ? 'bg-amber-900/10 border-amber-600 shadow-md ring-2 ring-amber-500/30'
+              : 'bg-white hover:bg-amber-50/40 border-slate-200 hover:border-amber-300 shadow-sm'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2.5">
+              <span className="p-2.5 bg-amber-100 text-amber-700 rounded-lg">
+                <Scale className="w-5 h-5 text-amber-600" />
+              </span>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                  FEATURE 2
+                </span>
+                <h4 className="text-sm font-bold text-navy-900 mt-0.5">
+                  Upload Bond & AI Synthetic Detector
+                </h4>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveTab('bonds');
+              }}
+              className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-md shadow-sm transition-colors flex items-center space-x-1"
+            >
+              <span>{activeTab === 'bonds' ? 'Active View' : 'Upload & Scan'}</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <p className="text-xs text-slate-600 mt-2.5">
+            Upload legal bond, indemnity deed, or e-stamp. Multi-vector algorithmic scan flags synthetic/AI text with immediate alerts.
+          </p>
+        </div>
+      </div>
+
       {/* Workspace Navigation Tabs */}
       <div className="border-b border-slate-200 bg-white px-2 rounded-t-lg shadow-sm">
-        <nav className="flex space-x-2 sm:space-x-4 overflow-x-auto">
+        <nav className="flex space-x-2 sm:space-x-3 overflow-x-auto">
+          <button
+            id="tab-call-recording"
+            onClick={() => setActiveTab('call_recording')}
+            className={`py-3 px-3 text-xs font-bold border-b-2 whitespace-nowrap transition-colors flex items-center space-x-1.5 ${
+              activeTab === 'call_recording'
+                ? 'border-blue-600 text-blue-700 bg-blue-50/50'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Mic className="w-3.5 h-3.5 text-blue-600" />
+            <span>🎙️ Call Recording to Agreement</span>
+          </button>
+
+          <button
+            id="tab-bonds"
+            onClick={() => setActiveTab('bonds')}
+            className={`py-3 px-3 text-xs font-bold border-b-2 whitespace-nowrap transition-colors flex items-center space-x-1.5 ${
+              activeTab === 'bonds'
+                ? 'border-amber-600 text-amber-700 bg-amber-50/50'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Scale className="w-3.5 h-3.5 text-amber-600" />
+            <span>📜 Bonds & AI Detector ({bonds.length})</span>
+            {bonds.some((b) => b.is_ai_generated) && (
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse ml-0.5" title="AI detected bond" />
+            )}
+          </button>
+
           <button
             id="tab-conversations"
             onClick={() => setActiveTab('conversations')}
@@ -598,7 +852,7 @@ export default function DealWorkspacePage() {
             }`}
           >
             <MessageSquare className="w-3.5 h-3.5" />
-            <span>Conversations ({conversations.length})</span>
+            <span>💬 Chat Messages ({conversations.length})</span>
           </button>
 
           <button
@@ -611,7 +865,7 @@ export default function DealWorkspacePage() {
             }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Extracted Terms & Clarifications</span>
+            <span>Extracted Terms</span>
           </button>
 
           <button
@@ -656,108 +910,239 @@ export default function DealWorkspacePage() {
       </div>
 
       {/* ========================================================= */}
+      {/* TAB: CALL RECORDING & AI AGREEMENT (FEATURE 1)             */}
+      {/* ========================================================= */}
+      {activeTab === 'call_recording' && (
+        <div className="space-y-6">
+          <AudioCallRecorder 
+            onImportAudio={handleImportAudio} 
+            importing={importing} 
+          />
+
+          {/* List of call recordings in this deal room */}
+          <div className="space-y-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              Recorded Phone Discussions & Transcripts ({conversations.filter(c => c.source_type === 'call_recording' || c.audio_url).length})
+            </h3>
+
+            {conversations.filter(c => c.source_type === 'call_recording' || c.audio_url).length === 0 ? (
+              <div className="p-8 text-center bg-white rounded-xl border border-slate-200 text-xs text-slate-400 space-y-2">
+                <Mic className="w-8 h-8 text-slate-300 mx-auto" />
+                <p>No phone call recordings added to this deal room yet.</p>
+                <p className="text-[11px] text-slate-500">
+                  Record live speech or upload an audio file above. AI will analyze dialogue and auto-draft agreement clauses.
+                </p>
+              </div>
+            ) : (
+              conversations
+                .filter(c => c.source_type === 'call_recording' || c.audio_url)
+                .map((c) => (
+                  <div key={c.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
+                    <div className="flex justify-between items-center text-xs text-slate-500 border-b border-slate-100 pb-2">
+                      <span className="flex items-center space-x-1.5">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-100 text-blue-800">
+                          🎙️ Call Recording
+                        </span>
+                        <span>
+                          Recorded by <strong className="text-slate-800">{c.uploaded_by_name}</strong>
+                        </span>
+                      </span>
+                      <span>{new Date(c.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                    </div>
+
+                    <div className="my-2">
+                      <AudioPlayerWidget 
+                        audioUrl={c.audio_url} 
+                        filename={c.audio_filename || "call_recording.wav"} 
+                        duration={c.audio_duration} 
+                      />
+                    </div>
+
+                    <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                      {c.messages && c.messages.length > 0 ? (
+                        c.messages.map((m) => (
+                          <div key={m.id} className="p-2.5 bg-slate-50 rounded-md border border-slate-100 text-xs">
+                            <div className="flex justify-between items-center mb-1 text-[11px] text-slate-500">
+                              <span className="font-bold text-navy-900">{m.speaker_label}</span>
+                              {m.message_timestamp && <span>{m.message_timestamp}</span>}
+                            </div>
+                            <p className="text-slate-700 whitespace-pre-wrap">{m.message_text}</p>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-xs text-slate-600 whitespace-pre-wrap font-mono p-2 bg-slate-50 rounded">
+                          {c.original_content}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
       {/* TAB 1: CONVERSATIONS (IMPORT & CHAT BUBBLES)               */}
       {/* ========================================================= */}
       {activeTab === 'conversations' && (
         <div className="space-y-6">
-          {/* Import Card */}
-          <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
-            <h3 className="text-sm font-bold text-navy-900 mb-1">
-              Import Business Conversation
-            </h3>
-            <p className="text-xs text-slate-500 mb-4">
-              Paste chat messages from WhatsApp, email threads, or notes. Or upload an exported <code>.txt</code> file.
-            </p>
+          {/* Mode Switcher Tabs for Input */}
+          <div className="flex items-center space-x-2 bg-slate-100 p-1 rounded-xl self-start">
+            <button
+              id="subtab-chat"
+              type="button"
+              onClick={() => setConvInputMode('chat')}
+              className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 ${
+                convInputMode === 'chat'
+                  ? 'bg-white text-navy-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>💬 Chat / WhatsApp</span>
+            </button>
 
-            <form onSubmit={handleImportConversation} className="space-y-4">
-              <div>
-                <textarea
-                  id="textarea-import-content"
-                  rows={4}
-                  placeholder="Example:&#10;[24/10/26, 10:00 AM] Rajesh: Can you finish painting before 30 October?&#10;[24/10/26, 10:02 AM] Sunil: Yes, total ₹25,000 for full shop painting.&#10;[24/10/26, 10:05 AM] Rajesh: 50% advance, 50% upon completion. Deal?&#10;[24/10/26, 10:06 AM] Sunil: Deal confirmed."
-                  value={pasteContent}
-                  onChange={(e) => setPasteContent(e.target.value)}
-                  className="w-full p-3 text-xs font-mono border border-slate-300 rounded-md focus:ring-1 focus:ring-navy-900 outline-none"
-                />
-              </div>
+            <button
+              id="subtab-call-recording"
+              type="button"
+              onClick={() => setConvInputMode('call_recording')}
+              className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 ${
+                convInputMode === 'call_recording'
+                  ? 'bg-white text-navy-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Mic className="w-3.5 h-3.5 text-blue-600" />
+              <span>🎙️ Call Recording & Mic</span>
+            </button>
 
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                <div className="flex items-center space-x-2">
-                  <label className="cursor-pointer px-3 py-1.5 border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-medium rounded-md flex items-center space-x-1.5">
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>{uploadFile ? uploadFile.name : 'Upload .txt File'}</span>
-                    <input
-                      type="file"
-                      accept=".txt,.text,.chat"
-                      className="hidden"
-                      onChange={(e) => setUploadFile(e.target.files[0] || null)}
-                    />
-                  </label>
-                  {uploadFile && (
-                    <button
-                      type="button"
-                      onClick={() => setUploadFile(null)}
-                      className="text-slate-400 hover:text-slate-600 text-xs"
-                    >
-                      Remove
-                    </button>
-                  )}
+            <button
+              id="subtab-bond-detector"
+              type="button"
+              onClick={() => setConvInputMode('bond_detector')}
+              className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 ${
+                convInputMode === 'bond_detector'
+                  ? 'bg-white text-navy-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Scale className="w-3.5 h-3.5 text-amber-600" />
+              <span>📜 Upload Bond / AI Detector</span>
+            </button>
+          </div>
+
+          {/* MODE 1: CHAT / WHATSAPP IMPORT */}
+          {convInputMode === 'chat' && (
+            <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
+              <h3 className="text-sm font-bold text-navy-900 mb-1">
+                Import Business Conversation
+              </h3>
+              <p className="text-xs text-slate-500 mb-4">
+                Paste chat messages from WhatsApp, email threads, or notes. Or upload an exported <code>.txt</code> file.
+              </p>
+
+              <form onSubmit={handleImportConversation} className="space-y-4">
+                <div>
+                  <textarea
+                    id="textarea-import-content"
+                    rows={4}
+                    placeholder="Example:&#10;[24/10/26, 10:00 AM] Rajesh: Can you finish painting before 30 October?&#10;[24/10/26, 10:02 AM] Sunil: Yes, total ₹25,000 for full shop painting.&#10;[24/10/26, 10:05 AM] Rajesh: 50% advance, 50% upon completion. Deal?&#10;[24/10/26, 10:06 AM] Sunil: Deal confirmed."
+                    value={pasteContent}
+                    onChange={(e) => setPasteContent(e.target.value)}
+                    className="w-full p-3 text-xs font-mono border border-slate-300 rounded-md focus:ring-1 focus:ring-navy-900 outline-none"
+                  />
                 </div>
 
-                <div className="flex items-center space-x-2">
-                  <button
-                    id="btn-import-conversation"
-                    type="submit"
-                    disabled={importing}
-                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-md shadow-sm transition-colors disabled:opacity-50"
-                  >
-                    {importing ? 'Importing...' : 'Save Conversation'}
-                  </button>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                  <div className="flex items-center space-x-2">
+                    <label className="cursor-pointer px-3 py-1.5 border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-medium rounded-md flex items-center space-x-1.5">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{uploadFile ? uploadFile.name : 'Upload .txt File'}</span>
+                      <input
+                        type="file"
+                        accept=".txt,.text,.chat"
+                        className="hidden"
+                        onChange={(e) => setUploadFile(e.target.files[0] || null)}
+                      />
+                    </label>
+                    {uploadFile && (
+                      <button
+                        type="button"
+                        onClick={() => setUploadFile(null)}
+                        className="text-slate-400 hover:text-slate-600 text-xs"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
 
-                  {conversations.length > 0 && (
+                  <div className="flex items-center space-x-2">
                     <button
-                      id="btn-analyze-gemini"
-                      type="button"
-                      onClick={handleAnalyze}
-                      disabled={analyzing}
-                      className="px-4 py-2 bg-navy-900 hover:bg-navy-800 text-white text-xs font-semibold rounded-md shadow-sm transition-colors flex items-center space-x-1.5 disabled:opacity-50"
+                      id="btn-import-conversation"
+                      type="submit"
+                      disabled={importing}
+                      className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-md shadow-sm transition-colors disabled:opacity-50"
                     >
-                      <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-                      <span>{analyzing ? 'Analyzing with AI...' : 'Analyze with AI'}</span>
+                      {importing ? 'Importing...' : 'Save Conversation'}
                     </button>
-                  )}
-                </div>
-              </div>
-            </form>
 
-            {/* Audio notice */}
-            <div className="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-md text-[11px] text-slate-500">
-              <span className="font-semibold text-slate-700">Audio Voice Notes Notice:</span> Automated audio speech-to-text transcription service is not configured in this deployment. Please import transcribed text or type voice note details directly.
-            </div>
-
-            {aiErrorMsg && (
-              <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-800 flex items-start justify-between gap-2">
-                <div className="flex items-start space-x-2">
-                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
-                  <div>
-                    <p className="font-semibold">AI Analysis Notice</p>
-                    <p className="mt-0.5">{aiErrorMsg}</p>
-                    <p className="mt-1 text-[11px] text-amber-700">
-                      You can switch to the <b>Extracted Terms & Clarifications</b> tab to review or manually input agreement terms.
-                    </p>
+                    {conversations.length > 0 && (
+                      <button
+                        id="btn-analyze-gemini"
+                        type="button"
+                        onClick={handleAnalyze}
+                        disabled={analyzing}
+                        className="px-4 py-2 bg-navy-900 hover:bg-navy-800 text-white text-xs font-semibold rounded-md shadow-sm transition-colors flex items-center space-x-1.5 disabled:opacity-50"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+                        <span>{analyzing ? 'Analyzing with AI...' : 'Analyze with AI'}</span>
+                      </button>
+                    )}
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setAiErrorMsg('')}
-                  title="Dismiss notice"
-                  className="text-amber-500 hover:text-amber-700 p-1 shrink-0"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-          </div>
+              </form>
+
+              {aiErrorMsg && (
+                <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-800 flex items-start justify-between gap-2">
+                  <div className="flex items-start space-x-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+                    <div>
+                      <p className="font-semibold">AI Analysis Notice</p>
+                      <p className="mt-0.5">{aiErrorMsg}</p>
+                      <p className="mt-1 text-[11px] text-amber-700">
+                        You can switch to the <b>Extracted Terms & Clarifications</b> tab to review or manually input agreement terms.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAiErrorMsg('')}
+                    title="Dismiss notice"
+                    className="text-amber-500 hover:text-amber-700 p-1 shrink-0"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* MODE 2: CALL RECORDING & LIVE MIC */}
+          {convInputMode === 'call_recording' && (
+            <AudioCallRecorder 
+              onImportAudio={handleImportAudio} 
+              importing={importing} 
+            />
+          )}
+
+          {/* MODE 3: UPLOAD BOND & AI DETECTOR */}
+          {convInputMode === 'bond_detector' && (
+            <BondUploadWidget 
+              onUploadBond={handleUploadBond} 
+              scanning={scanningBond} 
+            />
+          )}
 
           {/* Imported Conversations Feed */}
           <div className="space-y-4">
@@ -767,19 +1152,41 @@ export default function DealWorkspacePage() {
 
             {conversations.length === 0 ? (
               <div className="p-8 text-center bg-white rounded-lg border border-slate-200 text-xs text-slate-400">
-                No conversation transcripts imported yet. Paste chat text above to begin analysis.
+                No conversation transcripts imported yet. Paste chat text or upload a call recording above to begin analysis.
               </div>
             ) : (
               conversations.map((c) => (
                 <div key={c.id} className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm space-y-3">
                   <div className="flex justify-between items-center text-xs text-slate-500 border-b border-slate-100 pb-2">
-                    <span>
-                      Imported by <strong className="text-slate-800">{c.uploaded_by_name}</strong> via {c.source_type}
+                    <span className="flex items-center space-x-1.5">
+                      {c.source_type === 'call_recording' ? (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-100 text-blue-800">
+                          🎙️ Call Recording
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 text-slate-700">
+                          💬 {c.source_type}
+                        </span>
+                      )}
+                      <span>
+                        Imported by <strong className="text-slate-800">{c.uploaded_by_name}</strong>
+                      </span>
                     </span>
                     <span>{new Date(c.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
                   </div>
 
-                  {/* Messages */}
+                  {/* Audio Player if this is an audio recording */}
+                  {(c.audio_url || c.source_type === 'call_recording') && (
+                    <div className="my-2">
+                      <AudioPlayerWidget 
+                        audioUrl={c.audio_url} 
+                        filename={c.audio_filename || "call_recording.wav"} 
+                        duration={c.audio_duration} 
+                      />
+                    </div>
+                  )}
+
+                  {/* Messages / Transcript Dialogue */}
                   <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
                     {c.messages && c.messages.length > 0 ? (
                       c.messages.map((m) => (
@@ -1484,7 +1891,7 @@ export default function DealWorkspacePage() {
             </h4>
 
             <div className="space-y-4">
-              {activityLogs.map((log, index) => (
+              {activityLogs.map((log) => (
                 <div key={log.id} className="relative pl-6 border-l-2 border-slate-200 text-xs space-y-1">
                   <div className="absolute -left-1.5 top-0.5 w-3 h-3 rounded-full bg-navy-900 border-2 border-white"></div>
                   
@@ -1513,12 +1920,236 @@ export default function DealWorkspacePage() {
         </div>
       )}
 
+      {/* ========================================================= */}
+      {/* TAB: BONDS & AI DETECTOR VERIFICATION                     */}
+      {/* ========================================================= */}
+      {activeTab === 'bonds' && (
+        <div className="space-y-6">
+          {/* Summary Metric Header */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Total Scanned Bonds</span>
+                <span className="text-xl font-bold text-navy-900">{bonds.length}</span>
+              </div>
+              <div className="p-2.5 bg-blue-50 text-blue-700 rounded-lg">
+                <Scale className="w-5 h-5" />
+              </div>
+            </div>
+
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Authentic Legal Drafts</span>
+                <span className="text-xl font-bold text-emerald-600">
+                  {bonds.filter((b) => !b.is_ai_generated).length}
+                </span>
+              </div>
+              <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-lg">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+            </div>
+
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">AI Detected Flagged</span>
+                <span className="text-xl font-bold text-red-600">
+                  {bonds.filter((b) => b.is_ai_generated).length}
+                </span>
+              </div>
+              <div className="p-2.5 bg-red-50 text-red-700 rounded-lg">
+                <ShieldAlert className="w-5 h-5" />
+              </div>
+            </div>
+          </div>
+
+          {/* Upload Bond Widget */}
+          <BondUploadWidget onUploadBond={handleUploadBond} scanning={scanningBond} />
+
+          {/* List of Uploaded Bonds */}
+          <div className="space-y-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              Verified Legal Bonds & Deeds ({bonds.length})
+            </h3>
+
+            {bonds.length === 0 ? (
+              <div className="p-10 text-center bg-white rounded-xl border border-slate-200 text-xs text-slate-400 space-y-2">
+                <Scale className="w-8 h-8 text-slate-300 mx-auto" />
+                <p>No bonds or legal deeds uploaded to this deal room yet.</p>
+                <p className="text-[11px] text-slate-500">
+                  Upload an indemnity bond, surety deed, or e-stamp PDF above to run the synthetic AI detector.
+                </p>
+              </div>
+            ) : (
+              bonds.map((bond) => {
+                const scorePercent = Math.round((bond.ai_detection_score || 0) * 100);
+                const isAi = bond.is_ai_generated;
+                const terms = bond.extracted_terms || {};
+                const markers = bond.ai_markers || [];
+
+                return (
+                  <div 
+                    key={bond.id} 
+                    className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-all ${
+                      isAi ? 'border-red-300 ring-1 ring-red-100' : 'border-slate-200'
+                    }`}
+                  >
+                    {/* Top alert ribbon if AI detected */}
+                    {isAi && (
+                      <div className="bg-gradient-to-r from-red-600 to-rose-600 px-4 py-2 text-white text-xs font-bold flex items-center justify-between">
+                        <span className="flex items-center space-x-2">
+                          <ShieldAlert className="w-4 h-4 animate-pulse" />
+                          <span>AI DETECTOR WARNING: Synthetic boilerplate detected ({scorePercent}% AI score)</span>
+                        </span>
+                        <button
+                          onClick={() => {
+                            setAlertBond(bond);
+                            setShowAlertModal(true);
+                          }}
+                          className="px-2 py-0.5 bg-white text-red-700 rounded text-[11px] font-bold hover:bg-red-50 transition-colors shadow-sm"
+                        >
+                          View Full Alert
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="p-5 space-y-4">
+                      {/* Header */}
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-100 pb-3">
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm font-bold text-navy-900">
+                              {bond.bond_type}
+                            </span>
+                            {bond.filename && (
+                              <span className="px-2 py-0.5 bg-slate-100 text-slate-600 font-mono text-[11px] rounded">
+                                {bond.filename}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-slate-500 mt-0.5">
+                            Uploaded by <strong className="text-slate-800">{bond.uploaded_by_name}</strong> • {new Date(bond.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                          </p>
+                        </div>
+
+                        {/* Status Badge */}
+                        <div className="flex items-center space-x-2">
+                          {isAi ? (
+                            <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200 flex items-center space-x-1.5">
+                              <AlertTriangle className="w-3.5 h-3.5 text-red-600" />
+                              <span>{bond.ai_verdict} ({scorePercent}%)</span>
+                            </span>
+                          ) : (
+                            <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center space-x-1.5">
+                              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Authentic Legal Drafting ({scorePercent}%)</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* AI Markers Snippet */}
+                      {markers.length > 0 && (
+                        <div className="p-3 bg-red-50/70 border border-red-100 rounded-lg space-y-1.5">
+                          <span className="text-[11px] font-bold text-red-900 block uppercase tracking-wider">
+                            Flagged Synthetic Phrases ({markers.length}):
+                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {markers.slice(0, 4).map((m, idx) => (
+                              <span key={idx} className="px-2 py-0.5 bg-white border border-red-200 rounded text-[11px] text-red-800 font-mono">
+                                ⚠️ {m.description || m.marker_type}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Extracted Terms Grid */}
+                      {terms && Object.keys(terms).length > 0 && (
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs bg-slate-50 p-3 rounded-lg border border-slate-200">
+                          <div>
+                            <span className="text-[10px] text-slate-400 font-semibold uppercase block">Obligor</span>
+                            <span className="font-bold text-slate-800 truncate block">{terms.obligor || 'Principal'}</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-slate-400 font-semibold uppercase block">Obligee</span>
+                            <span className="font-bold text-slate-800 truncate block">{terms.obligee || 'Beneficiary'}</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-slate-400 font-semibold uppercase block">Penal / Bond Sum</span>
+                            <span className="font-bold text-emerald-700 block">
+                              {terms.bond_amount ? `₹${terms.bond_amount}` : 'Specified in clauses'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-slate-400 font-semibold uppercase block">Stamp Reference</span>
+                            <span className="font-mono text-slate-700 truncate block">{terms.stamp_reference || 'Unregistered'}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Document Preview Snippet */}
+                      <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 max-h-32 overflow-y-auto font-mono text-[11px] text-slate-600 whitespace-pre-wrap">
+                        {(bond.document_text || bond.content_text || '').slice(0, 600)}...
+                      </div>
+
+                      {/* Footer Actions */}
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pt-1 border-t border-slate-100">
+                        <div className="text-[11px] text-slate-500">
+                          {isAi ? (
+                            <span className="text-amber-700 font-medium">
+                              ⚠️ Review carefully before adoption. Converts into plain-language deal terms.
+                            </span>
+                          ) : (
+                            <span className="text-emerald-700 font-medium">
+                              ✓ Verified statutory bond terms can be adopted into agreement.
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center space-x-2 w-full sm:w-auto justify-end">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteBond(bond.id)}
+                            className="px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-md font-medium transition-colors"
+                          >
+                            Delete
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleApplyBondToAgreement(bond.id)}
+                            disabled={applyingBond}
+                            className="px-4 py-1.5 bg-navy-900 hover:bg-navy-800 text-white text-xs font-semibold rounded-md shadow-sm transition-all flex items-center space-x-1.5 disabled:opacity-50"
+                          >
+                            <FileCheck2 className="w-3.5 h-3.5 text-blue-300" />
+                            <span>{applyingBond ? 'Converting...' : 'Adopt into Agreement'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Invite Modal */}
       <InviteModal
         isOpen={showInviteModal}
         onClose={() => setShowInviteModal(false)}
         dealId={deal.id}
         dealTitle={deal.title}
+      />
+
+      {/* Immediate AI Detector Alert Modal */}
+      <AIDetectorAlertModal
+        isOpen={showAlertModal}
+        onClose={() => setShowAlertModal(false)}
+        bond={alertBond}
+        onApplyToAgreement={handleApplyBondToAgreement}
+        applying={applyingBond}
       />
 
       {/* Change Request Modal */}

@@ -6,14 +6,41 @@ from sqlalchemy import (
     Text,
     Boolean,
     Integer,
+    Float,
     ForeignKey,
     DateTime,
     JSON,
     UniqueConstraint,
 )
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy.types import TypeDecorator, CHAR
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
+
+
+class GUID(TypeDecorator):
+    """Platform-independent GUID type.
+    Uses PostgreSQL's UUID type, otherwise uses CHAR(36).
+    """
+    impl = CHAR
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "postgresql":
+            return dialect.type_descriptor(PG_UUID(as_uuid=False))
+        else:
+            return dialect.type_descriptor(CHAR(36))
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return value
+        return str(value)
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return value
+        return str(value)
 
 
 def utc_now():
@@ -75,6 +102,9 @@ class Deal(Base):
     amendments = relationship(
         "Amendment", back_populates="deal", cascade="all, delete-orphan"
     )
+    bond_documents = relationship(
+        "BondDocument", back_populates="deal", cascade="all, delete-orphan"
+    )
 
 
 class DealParticipant(Base):
@@ -118,6 +148,9 @@ class Conversation(Base):
         String(50), nullable=False, default="paste"
     )  # 'paste' or 'file_upload'
     original_content = Column(Text, nullable=False)
+    audio_url = Column(String(500), nullable=True)
+    audio_filename = Column(String(255), nullable=True)
+    audio_duration = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), default=utc_now)
 
     deal = relationship("Deal", back_populates="conversations")
@@ -181,6 +214,38 @@ class ClarificationAnswer(Base):
     created_at = Column(DateTime(timezone=True), default=utc_now)
 
     deal = relationship("Deal", back_populates="clarifications")
+
+
+class BondDocument(Base):
+    __tablename__ = "bond_documents"
+
+    id = Column(String(36), primary_key=True, default=gen_uuid)
+    deal_id = Column(
+        String(36),
+        ForeignKey("deals.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    uploaded_by = Column(String(36), nullable=False)
+    filename = Column(String(255), nullable=False)
+    file_type = Column(String(50), nullable=False, default="pdf")
+    bond_type = Column(String(100), nullable=False, default="Legal Bond")
+    document_text = Column(Text, nullable=False, default="")
+
+    # AI Detection fields
+    is_ai_generated = Column(Boolean, nullable=False, default=False)
+    ai_detection_score = Column(Float, nullable=False, default=0.0)
+    ai_verdict = Column(String(100), nullable=False, default="Likely Human")
+    ai_confidence = Column(String(50), nullable=False, default="medium")
+    ai_markers = Column(JSON, nullable=False, default=list)
+    ai_alert_triggered = Column(Boolean, nullable=False, default=False)
+
+    # Extracted legal terms from the bond
+    extracted_terms = Column(JSON, nullable=False, default=dict)
+
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+
+    deal = relationship("Deal", back_populates="bond_documents")
 
 
 class AgreementVersion(Base):

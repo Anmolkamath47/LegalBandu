@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { api } from '../services/api';
-import { X, Copy, Check, Mail, ShieldAlert, Link as LinkIcon, UserPlus } from 'lucide-react';
+import { X, Copy, Check, Mail, ShieldAlert, UserPlus } from 'lucide-react';
 
 export default function InviteModal({ isOpen, onClose, dealId, dealTitle }) {
   const [email, setEmail] = useState('');

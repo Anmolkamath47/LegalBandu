@@ -17,10 +17,12 @@ People frequently make business agreements informally through WhatsApp messages,
 **Legalbandu** bridges the gap between everyday business communication and legal certainty:
 - **Deal Rooms:** Create private workspaces for business transactions.
 - **Secure Invitations:** Cryptographically hashed single-use tokens bind counterparties.
-- **Conversation Import:** Ingest raw chat transcripts and exported `.txt` conversations.
+- **Conversation & Call Recording Import:** Ingest raw chat transcripts, exported `.txt` files, or phone call voice recordings (`.mp3`, `.wav`, `.m4a`, `.webm`, `.ogg`) with in-browser mic capture.
+- **Call-to-Agreement AI Pipeline:** Automatically transcribes audio dialogue, extracts core commercial key points (scope, price, schedule, acceptance criteria), and drafts an official `AgreementVersion`.
+- **Legal Bond Upload & Multi-Vector AI Detector:** Upload legal bonds, indemnity deeds, and e-stamps (`.pdf`, `.docx`, `.txt`, image OCR). Scans for ChatGPT/synthetic LLM text with immediate warning alerts and 1-click plain-language agreement conversion.
 - **AI Term Extraction:** Google Gemini analyzes conversations, flagging confirmed terms, ambiguities, and contradictions.
 - **Missing-Term Clarification:** Structured resolution of missing terms and questions.
-- **Plain-Language Agreement Generation:** Automatic drafting of clear, 14-section documents.
+- **Plain-Language Agreement Generation:** Automatic drafting of clear, structured bilateral contracts.
 - **Bilateral Review & Approval:** Mutually confirmed only when **both** parties approve the identical version.
 - **Amendment Management:** Side-by-side tracking of changes (e.g., price and deadline revisions). Any substantive change invalidates prior approvals and increments the version number.
 - **Tamper-Evident SHA-256 Audit Chain:** Cryptographically linked activity history with real-time verification.
