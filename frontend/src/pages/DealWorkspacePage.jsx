@@ -236,6 +236,20 @@ export default function DealWorkspacePage() {
       if (uploadedBond.is_ai_generated || uploadedBond.ai_alert_triggered) {
         setAlertBond(uploadedBond);
         setShowAlertModal(true);
+      } else {
+        // Authentic bond: auto-stored directly in legal agreement version!
+        const [freshAgreements, freshDeal] = await Promise.all([
+          api.getAgreements(dealId).catch(() => []),
+          api.getDeal(dealId).catch(() => null),
+        ]);
+
+        if (freshAgreements && freshAgreements.length > 0) {
+          setVersions(freshAgreements);
+          setCurrentVersion(freshAgreements[0]);
+          initEditFields(freshAgreements[0]);
+          setActiveTab('agreement');
+        }
+        if (freshDeal) setDeal(freshDeal);
       }
 
       api.getActivity(dealId).then(setActivityLogs).catch(() => {});
@@ -2128,8 +2142,9 @@ export default function DealWorkspacePage() {
                               ⚠️ Review carefully before adoption. Converts into plain-language deal terms.
                             </span>
                           ) : (
-                            <span className="text-emerald-700 font-medium">
-                              ✓ Verified statutory bond terms can be adopted into agreement.
+                            <span className="text-emerald-700 font-medium flex items-center space-x-1">
+                              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 inline" />
+                              <span>✓ Authentic Document • Auto-stored in Agreement {bond.agreement_version_number ? `v${bond.agreement_version_number}` : ''}</span>
                             </span>
                           )}
                         </div>
@@ -2143,6 +2158,17 @@ export default function DealWorkspacePage() {
                             Delete
                           </button>
 
+                          {!isAi && (
+                            <button
+                              type="button"
+                              onClick={() => setActiveTab('agreement')}
+                              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-md shadow-sm transition-all flex items-center space-x-1.5"
+                            >
+                              <FileCheck2 className="w-3.5 h-3.5 text-emerald-100" />
+                              <span>View in Agreement</span>
+                            </button>
+                          )}
+
                           <button
                             type="button"
                             onClick={() => handleApplyBondToAgreement(bond.id)}
@@ -2150,7 +2176,7 @@ export default function DealWorkspacePage() {
                             className="px-4 py-1.5 bg-navy-900 hover:bg-navy-800 text-white text-xs font-semibold rounded-md shadow-sm transition-all flex items-center space-x-1.5 disabled:opacity-50"
                           >
                             <FileCheck2 className="w-3.5 h-3.5 text-blue-300" />
-                            <span>{applyingBond ? 'Converting...' : 'Adopt into Agreement'}</span>
+                            <span>{applyingBond ? 'Converting...' : isAi ? 'Adopt into Agreement' : 'Re-apply to New Version'}</span>
                           </button>
                         </div>
                       </div>

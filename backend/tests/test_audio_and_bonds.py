@@ -156,3 +156,60 @@ def test_audio_recording_import_and_stream():
     finally:
         client.delete(f"/api/deals/{deal_id}", headers=headers)
 
+
+def test_authentic_bond_auto_stored_in_agreement():
+    import uuid
+    email = f"autobond_{uuid.uuid4().hex[:6]}@example.com"
+    r = client.post("/api/auth/register", json={"email": email, "password": "Password123!", "full_name": "Auto Bond Tester"})
+    assert r.status_code == 200
+    token = r.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    deal_r = client.post("/api/deals", json={"title": "Authentic Bond Auto-Store Deal", "category": "Construction", "currency": "INR"}, headers=headers)
+    assert deal_r.status_code == 201
+    deal_id = deal_r.json()["id"]
+
+    try:
+        # Authentic human legal bond with statutory e-stamp citations
+        authentic_bond_text = """
+        GOVERNMENT OF KARNATAKA - E-STAMP CERTIFICATE
+        Certificate No: IN-KA82937401928374U
+        Date: 24-Oct-2026
+        
+        INDEMNITY BOND
+        Executed under the Indian Stamp Act, 1899 and the Indian Contract Act, 1872.
+        
+        Obligor: Sri Raghavan Nair, Bangalore
+        Obligee: Apex Infra Tech Ltd, Bangalore
+        Penal Sum: Rs. 2,00,000/- (Rupees Two Lakhs Only)
+        
+        WHEREAS the Obligor agrees to perform civil masonry work strictly according to specifications.
+        NOW THIS DEED WITNESSETH that Obligor covenants to discharge all obligations in full.
+        """
+        upload_r = client.post(
+            f"/api/deals/{deal_id}/bonds",
+            data={"bond_type": "Indemnity Bond", "content": authentic_bond_text},
+            headers=headers,
+        )
+        assert upload_r.status_code == 200
+        bond_data = upload_r.json()
+        assert bond_data["is_ai_generated"] is False
+        assert bond_data["ai_alert_triggered"] is False
+        assert bond_data["auto_stored_in_agreement"] is True
+        assert bond_data["agreement_version_number"] == 1
+
+        # Verify that agreement version was created and linked to deal
+        deal_check = client.get(f"/api/deals/{deal_id}", headers=headers)
+        assert deal_check.status_code == 200
+        assert deal_check.json()["current_version_number"] == 1
+
+        # Verify agreement versions endpoint has the new version
+        vers_r = client.get(f"/api/deals/{deal_id}/agreements", headers=headers)
+        assert vers_r.status_code == 200
+        vers = vers_r.json()
+        assert len(vers) == 1
+        assert "Raghavan Nair" in vers[0]["agreement_text"] or "Obligor" in vers[0]["agreement_text"]
+
+    finally:
+        client.delete(f"/api/deals/{deal_id}", headers=headers)
+

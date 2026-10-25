@@ -396,6 +396,8 @@ class BondDocumentOut(BaseModel):
     ai_markers: List[Dict[str, Any]] = []
     ai_alert_triggered: bool
     extracted_terms: Dict[str, Any] = {}
+    auto_stored_in_agreement: Optional[bool] = False
+    agreement_version_number: Optional[int] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

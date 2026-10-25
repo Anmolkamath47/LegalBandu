@@ -24,9 +24,7 @@ AI_SIGNATURE_PATTERNS = [
     (r"\[(?:insert|enter|name of) (?:party|date|amount|jurisdiction|address)\]", "Unreplaced LLM placeholder bracket tag", "high"),
     (r"\blaws of the applicable jurisdiction\b", "Generic AI unlocalized jurisdiction placeholder", "high"),
     (r"\bgoverned by the laws of your jurisdiction\b", "Generic AI unlocalized jurisdiction placeholder", "high"),
-    (r"\bin accordance with applicable state and federal laws\b", "Generic unspecific statutory clause", "medium"),
     (r"\bmutually agreeable terms to be determined\b", "Vague AI non-binding clause", "medium"),
-    (r"\bthis agreement is entered into as of the date first written above\b", "Standard LLM contract opening template", "low"),
 ]
 
 # Statutory and authentic Indian/International legal authenticity markers
@@ -50,6 +48,21 @@ AUTHENTIC_LEGAL_MARKERS = [
     r"\bsolemnly affirmed\b",
     r"\bseal of the court\b",
     r"\bdelaware general corporation\b",
+    r"\bwhereas\b",
+    r"\bnow therefore\b",
+    r"\bterms and conditions\b",
+    r"\bscope of work\b",
+    r"\bconfidentiality\b",
+    r"\bgoverning law\b",
+    r"\bindemnification\b",
+    r"\bforce majeure\b",
+    r"\bseverability\b",
+    r"\bentire agreement\b",
+    r"\bcounterparts\b",
+    r"\bpenal sum\b",
+    r"\bindemnity bond\b",
+    r"\bservice agreement\b",
+    r"\bclause\s+\d+\b",
 ]
 
 
@@ -171,24 +184,27 @@ def detect_ai_in_document(text: str, filename: str = "") -> Dict[str, Any]:
         })
 
     # 5. Statutory discount if authentic legal citations exist
-    authenticity_discount = min(0.35, authentic_cites * 0.10)
+    authenticity_discount = min(0.60, authentic_cites * 0.15)
 
     # 6. Compute Raw AI Score
-    base_score = 0.15
+    base_score = 0.05
     raw_score = base_score + signature_score + burstiness_score + repetition_score - authenticity_discount
 
     if has_critical_signature:
         raw_score = max(raw_score, 0.78)
+    elif authentic_cites >= 2 and signature_score == 0:
+        # Heavily verified human legal drafting
+        raw_score = min(raw_score, 0.15)
 
-    final_score = round(max(0.04, min(0.98, raw_score)), 2)
+    final_score = round(max(0.02, min(0.98, raw_score)), 2)
 
     # 7. Verdict & Alert determination
-    if final_score >= 0.55 or has_critical_signature:
+    if (final_score >= 0.55 or has_critical_signature) and not (authentic_cites >= 2 and not has_critical_signature):
         is_ai = True
         alert_triggered = True
         verdict = "High Risk: AI-Generated Content Detected"
         confidence = "high" if (final_score >= 0.70 or has_critical_signature) else "medium"
-    elif final_score >= 0.35:
+    elif final_score >= 0.35 and not authentic_cites:
         is_ai = False
         alert_triggered = False
         verdict = "Mixed / Potential AI-Assisted Drafting"
@@ -197,7 +213,7 @@ def detect_ai_in_document(text: str, filename: str = "") -> Dict[str, Any]:
         is_ai = False
         alert_triggered = False
         verdict = "Authentic Human Legal Drafting"
-        confidence = "high" if authentic_cites >= 2 else "medium"
+        confidence = "high" if authentic_cites >= 1 else "medium"
 
     return {
         "is_ai_generated": is_ai,
