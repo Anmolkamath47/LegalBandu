@@ -6,6 +6,19 @@ from .ai_detector_service import detect_ai_in_document, extract_bond_terms
 from .audio_service import save_audio_file, transcribe_audio_file
 from .image_service import save_image_file, extract_dialogue_from_image, SUPPORTED_IMAGE_EXTENSIONS
 
+from .legal_compliance_service import (
+    seed_compliance_reference_data,
+    get_or_create_compliance_record,
+    run_mandatory_legal_validity_checks,
+    advance_lifecycle_state,
+    VALID_LIFECYCLE_STATES,
+)
+from .customs_bond_service import (
+    get_or_create_customs_bond,
+    process_customs_bond_step,
+    CUSTOMS_BOND_WORKFLOW_STEPS,
+)
+
 __all__ = [
     "record_activity",
     "verify_activity_chain",
@@ -23,5 +36,14 @@ __all__ = [
     "save_image_file",
     "extract_dialogue_from_image",
     "SUPPORTED_IMAGE_EXTENSIONS",
+    "seed_compliance_reference_data",
+    "get_or_create_compliance_record",
+    "run_mandatory_legal_validity_checks",
+    "advance_lifecycle_state",
+    "VALID_LIFECYCLE_STATES",
+    "get_or_create_customs_bond",
+    "process_customs_bond_step",
+    "CUSTOMS_BOND_WORKFLOW_STEPS",
 ]
+
 

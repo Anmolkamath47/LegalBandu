@@ -105,6 +105,12 @@ class Deal(Base):
     bond_documents = relationship(
         "BondDocument", back_populates="deal", cascade="all, delete-orphan"
     )
+    compliance_record = relationship(
+        "InstrumentComplianceRecord", back_populates="deal", uselist=False, cascade="all, delete-orphan"
+    )
+    customs_bonds = relationship(
+        "CustomsEBondRecord", back_populates="deal", cascade="all, delete-orphan"
+    )
 
 
 class DealParticipant(Base):
@@ -393,3 +399,179 @@ class Notification(Base):
     message = Column(Text, nullable=False)
     is_read = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime(timezone=True), default=utc_now)
+
+
+class AuthorizationProvider(Base):
+    """
+    Administrator-Only Register of Government Integrations & Approved Service Providers.
+    Tracks authorization state, genuine onboarding evidence, certifications, and valid coverage.
+    States: NOT_ASSESSED, ELIGIBILITY_REVIEW_REQUIRED, APPLICATION_REQUIRED, APPLICATION_SUBMITTED,
+            APPROVED_PENDING_INTEGRATION, PRODUCTION_VERIFIED, EXPIRED, SUSPENDED, REJECTED.
+    """
+    __tablename__ = "authorization_providers"
+
+    id = Column(String(36), primary_key=True, default=gen_uuid)
+    provider_code = Column(String(50), unique=True, nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    authority_type = Column(String(100), nullable=False)  # CRA, DDE, ESP, Customs Gateway, SRO
+    official_website = Column(String(500), nullable=False)
+    documentation_url = Column(String(500), nullable=False)
+    authorization_type = Column(String(150), nullable=False)
+    eligible_legal_entity = Column(String(255), nullable=False)
+    eligibility_criteria = Column(Text, nullable=False)
+    application_procedure = Column(Text, nullable=False)
+    required_corporate_docs = Column(JSON, nullable=False, default=list)
+    technical_certifications = Column(JSON, nullable=False, default=list)  # CERT-In, ISO27001, VAPT
+    agreements_fees_obligations = Column(Text, nullable=False)
+    api_access_details = Column(Text, nullable=False)
+
+    # Authorization status: NEVER invented. PRODUCTION_VERIFIED requires live verification evidence
+    authorization_status = Column(
+        String(50), nullable=False, default="ELIGIBILITY_REVIEW_REQUIRED"
+    )
+    approval_reference = Column(String(255), nullable=True)
+    supporting_evidence = Column(JSON, nullable=False, default=dict)
+    issue_date = Column(DateTime(timezone=True), nullable=True)
+    expiry_date = Column(DateTime(timezone=True), nullable=True)
+    renewal_requirements = Column(Text, nullable=True)
+    geographic_coverage = Column(String(255), nullable=False, default="Pan-India")
+    document_category_coverage = Column(JSON, nullable=False, default=list)  # ["A", "B", "E"]
+    restrictions = Column(Text, nullable=True)
+    responsible_admin_email = Column(String(255), nullable=False, default="admin@legalbandu.com")
+    is_sandbox_only = Column(Boolean, nullable=False, default=True)
+
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+
+class StatutoryExclusion(Base):
+    """
+    Maintained Register of Statutory Exclusions under the First Schedule of IT Act, 2000.
+    Identifies instruments that CANNOT be executed electronically in India.
+    """
+    __tablename__ = "statutory_exclusions"
+
+    id = Column(String(36), primary_key=True, default=gen_uuid)
+    exclusion_code = Column(String(50), unique=True, nullable=False, index=True)
+    instrument_name = Column(String(255), nullable=False)
+    statutory_source = Column(String(255), nullable=False)
+    section_reference = Column(String(150), nullable=False)
+    effective_date = Column(String(50), nullable=False, default="2000-10-17")
+    is_electronic_execution_permitted = Column(Boolean, nullable=False, default=False)
+    required_physical_formalities = Column(Text, nullable=False)
+    statutory_exceptions = Column(Text, nullable=False, default="None")
+    legal_review_mandatory = Column(Boolean, nullable=False, default=True)
+
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+
+
+class InstrumentComplianceRecord(Base):
+    """
+    Per-deal compliance record tracking the exact 15-state legal lifecycle,
+    mandatory validity checklist, genuine verification evidence, and statutory exclusion state.
+    """
+    __tablename__ = "instrument_compliance_records"
+
+    id = Column(String(36), primary_key=True, default=gen_uuid)
+    deal_id = Column(
+        GUID(),
+        ForeignKey("deals.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+    instrument_category = Column(String(10), nullable=False, default="A")  # A, B, C, D, E
+    instrument_type = Column(String(150), nullable=False, default="Private Commercial Agreement")
+
+    # The 15 mandatory lifecycle states:
+    # 1. Draft — not executed
+    # 2. Legal review required
+    # 3. Ready for stamping
+    # 4. Stamping pending
+    # 5. Stamped — genuine applicable evidence verified
+    # 6. Awaiting signatures
+    # 7. Signed — signature evidence verified
+    # 8. Execution requirements pending
+    # 9. Executed — applicable execution checks passed
+    # 10. Registration pending
+    # 11. Registered — genuine registration evidence verified
+    # 12. Official submission pending
+    # 13. Submitted to official platform
+    # 14. Officially accepted or issued — only with verified supporting evidence
+    # 15. Completed — all applicable requirements tracked for this instrument are satisfied
+    lifecycle_status = Column(
+        String(100), nullable=False, default="Draft — not executed"
+    )
+
+    validity_checks = Column(JSON, nullable=False, default=dict)
+    legal_review_flags = Column(JSON, nullable=False, default=list)
+
+    # Statutory Exclusion
+    is_statutory_exclusion = Column(Boolean, nullable=False, default=False)
+    exclusion_details = Column(JSON, nullable=False, default=dict)
+
+    # Stamping
+    stamp_duty_required = Column(Boolean, nullable=False, default=False)
+    stamp_duty_state = Column(String(100), nullable=True)
+    stamp_duty_amount = Column(Float, nullable=True)
+    stamp_certificate_no = Column(String(100), nullable=True)
+    stamp_grn = Column(String(100), nullable=True)
+    stamp_verified = Column(Boolean, nullable=False, default=False)
+    stamp_verification_source = Column(String(500), nullable=True)
+
+    # Execution / Signatures
+    signature_method_required = Column(String(100), nullable=False, default="electronic")
+    signature_evidence = Column(JSON, nullable=False, default=dict)
+
+    # Registration & Notarization
+    registration_required = Column(Boolean, nullable=False, default=False)
+    sro_details = Column(JSON, nullable=False, default=dict)
+
+    # Government / Official Platform
+    official_submission_channel = Column(String(100), nullable=True)
+    official_acknowledgement_ref = Column(String(255), nullable=True)
+    official_issued_bond_number = Column(String(255), nullable=True)
+    official_status_evidence = Column(JSON, nullable=False, default=dict)
+
+    issued_document_hash_sha256 = Column(String(64), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+    deal = relationship("Deal", back_populates="compliance_record")
+
+
+class CustomsEBondRecord(Base):
+    """
+    Category E: Specialized electronic customs e-Bond workflow (ICEGATE & NeSL integration).
+    Tracks the authentic 11-step sequence under CBIC Circular No. 19/2022-Customs.
+    """
+    __tablename__ = "customs_e_bonds"
+
+    id = Column(String(36), primary_key=True, default=gen_uuid)
+    deal_id = Column(
+        GUID(),
+        ForeignKey("deals.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    iec_number = Column(String(20), nullable=False)
+    entity_pan = Column(String(20), nullable=False)
+    customs_station_code = Column(String(20), nullable=False, default="INNSA1")
+    bond_category = Column(String(100), nullable=False, default="Warehousing Bond (Sec 59)")
+    bond_amount = Column(Float, nullable=False, default=0.0)
+    bank_guarantee_amount = Column(Float, nullable=False, default=0.0)
+    workflow_step = Column(Integer, nullable=False, default=1)  # 1 to 11
+    declarations_accepted = Column(Boolean, nullable=False, default=False)
+
+    icegate_job_number = Column(String(100), nullable=True)
+    icegate_ack_number = Column(String(100), nullable=True)
+    customs_officer_approval_ref = Column(String(100), nullable=True)
+    official_bond_number = Column(String(100), nullable=True)
+
+    step_status_log = Column(JSON, nullable=False, default=dict)
+
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+    deal = relationship("Deal", back_populates="customs_bonds")

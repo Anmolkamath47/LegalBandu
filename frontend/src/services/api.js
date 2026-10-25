@@ -226,4 +226,26 @@ export const api = {
   markAllNotificationsRead: () => request('/notifications/read-all', {
     method: 'POST',
   }),
+
+  // Legal Compliance & Government Authorization
+  getAuthorizationProviders: () => request('/compliance/authorization-providers'),
+  updateAuthorizationProvider: (providerCode, payload) => request(`/compliance/authorization-providers/${providerCode}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  }),
+  getStatutoryExclusions: () => request('/compliance/statutory-exclusions'),
+  getDealCompliance: (dealId) => request(`/deals/${dealId}/compliance`),
+  evaluateDealCompliance: (dealId) => request(`/deals/${dealId}/compliance/evaluate`, {
+    method: 'POST',
+  }),
+  advanceComplianceState: (dealId, payload) => request(`/deals/${dealId}/compliance/advance-state`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }),
+  getCustomsBond: (dealId) => request(`/deals/${dealId}/customs-bond`),
+  submitCustomsBondStep: (dealId, payload) => request(`/deals/${dealId}/customs-bond/step`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }),
 };
+

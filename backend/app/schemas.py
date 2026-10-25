@@ -414,3 +414,127 @@ class BondDocumentCreate(BaseModel):
     bond_type: Optional[str] = "Legal Bond"
     content: Optional[str] = None
 
+
+# ==========================================
+# Government Authorization & Compliance
+# ==========================================
+class AuthorizationProviderOut(BaseModel):
+    id: StrId
+    provider_code: str
+    name: str
+    authority_type: str
+    official_website: str
+    documentation_url: str
+    authorization_type: str
+    eligible_legal_entity: str
+    eligibility_criteria: str
+    application_procedure: str
+    required_corporate_docs: List[str] = []
+    technical_certifications: List[str] = []
+    agreements_fees_obligations: str
+    api_access_details: str
+    authorization_status: str
+    approval_reference: Optional[str] = None
+    supporting_evidence: Dict[str, Any] = {}
+    issue_date: Optional[datetime] = None
+    expiry_date: Optional[datetime] = None
+    renewal_requirements: Optional[str] = None
+    geographic_coverage: str
+    document_category_coverage: List[str] = []
+    restrictions: Optional[str] = None
+    responsible_admin_email: str
+    is_sandbox_only: bool
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AuthorizationProviderUpdate(BaseModel):
+    authorization_status: str
+    approval_reference: Optional[str] = None
+    supporting_evidence: Optional[Dict[str, Any]] = None
+    issue_date: Optional[datetime] = None
+    expiry_date: Optional[datetime] = None
+    restrictions: Optional[str] = None
+    is_sandbox_only: Optional[bool] = None
+
+
+class StatutoryExclusionOut(BaseModel):
+    id: StrId
+    exclusion_code: str
+    instrument_name: str
+    statutory_source: str
+    section_reference: str
+    effective_date: str
+    is_electronic_execution_permitted: bool
+    required_physical_formalities: str
+    statutory_exceptions: str
+    legal_review_mandatory: bool
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ComplianceRecordOut(BaseModel):
+    id: StrId
+    deal_id: StrId
+    instrument_category: str
+    instrument_type: str
+    lifecycle_status: str
+    validity_checks: Dict[str, Any] = {}
+    legal_review_flags: List[str] = []
+    is_statutory_exclusion: bool
+    exclusion_details: Dict[str, Any] = {}
+    stamp_duty_required: bool
+    stamp_duty_state: Optional[str] = None
+    stamp_duty_amount: Optional[float] = None
+    stamp_certificate_no: Optional[str] = None
+    stamp_grn: Optional[str] = None
+    stamp_verified: bool
+    stamp_verification_source: Optional[str] = None
+    signature_method_required: str
+    signature_evidence: Dict[str, Any] = {}
+    registration_required: bool
+    sro_details: Dict[str, Any] = {}
+    official_submission_channel: Optional[str] = None
+    official_acknowledgement_ref: Optional[str] = None
+    official_issued_bond_number: Optional[str] = None
+    official_status_evidence: Dict[str, Any] = {}
+    issued_document_hash_sha256: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ComplianceAdvanceRequest(BaseModel):
+    target_state: str
+    evidence_payload: Optional[Dict[str, Any]] = None
+
+
+class CustomsEBondOut(BaseModel):
+    id: StrId
+    deal_id: StrId
+    iec_number: str
+    entity_pan: str
+    customs_station_code: str
+    bond_category: str
+    bond_amount: float
+    bank_guarantee_amount: float
+    workflow_step: int
+    declarations_accepted: bool
+    icegate_job_number: Optional[str] = None
+    icegate_ack_number: Optional[str] = None
+    customs_officer_approval_ref: Optional[str] = None
+    official_bond_number: Optional[str] = None
+    step_status_log: Dict[str, Any] = {}
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CustomsEBondStepRequest(BaseModel):
+    step_num: int
+    step_data: Dict[str, Any] = {}
+

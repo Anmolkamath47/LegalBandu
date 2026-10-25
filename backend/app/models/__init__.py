@@ -14,6 +14,10 @@ from .models import (
     ActivityLog,
     Notification,
     BondDocument,
+    AuthorizationProvider,
+    StatutoryExclusion,
+    InstrumentComplianceRecord,
+    CustomsEBondRecord,
 )
 
 __all__ = [
@@ -32,4 +36,8 @@ __all__ = [
     "ActivityLog",
     "Notification",
     "BondDocument",
+    "AuthorizationProvider",
+    "StatutoryExclusion",
+    "InstrumentComplianceRecord",
+    "CustomsEBondRecord",
 ]

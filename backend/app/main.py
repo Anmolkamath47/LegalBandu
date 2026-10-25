@@ -15,6 +15,7 @@ from .routers import (
     activity_router,
     notifications_router,
     bonds_router,
+    compliance_router,
 )
 
 
@@ -60,6 +61,7 @@ app.include_router(amendments_router, prefix=settings.API_V1_PREFIX)
 app.include_router(activity_router, prefix=settings.API_V1_PREFIX)
 app.include_router(notifications_router, prefix=settings.API_V1_PREFIX)
 app.include_router(bonds_router, prefix=settings.API_V1_PREFIX)
+app.include_router(compliance_router, prefix=settings.API_V1_PREFIX)
 
 
 import os

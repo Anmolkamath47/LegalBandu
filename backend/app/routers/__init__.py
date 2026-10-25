@@ -9,6 +9,7 @@ from .amendments import router as amendments_router
 from .activity import router as activity_router
 from .notifications import router as notifications_router
 from .bonds import router as bonds_router
+from .compliance_router import router as compliance_router
 
 __all__ = [
     "health_router",
@@ -22,4 +23,6 @@ __all__ = [
     "activity_router",
     "notifications_router",
     "bonds_router",
+    "compliance_router",
 ]
+

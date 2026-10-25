@@ -32,8 +32,9 @@ import AIDetectorAlertModal from '../components/AIDetectorAlertModal';
 import AudioPlayerWidget from '../components/AudioPlayerWidget';
 import AudioCallRecorder from '../components/AudioCallRecorder';
 import BondUploadWidget from '../components/BondUploadWidget';
+import LegalCompliancePanel from '../components/LegalCompliancePanel';
 
-export default function DealWorkspacePage() {
+export default function DealWorkspacePage({ onOpenAdminAuth }) {
   const { dealId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -919,6 +920,19 @@ export default function DealWorkspacePage() {
             <GitCommit className="w-3.5 h-3.5" />
             <span>Audit Trail & SHA-256</span>
           </button>
+
+          <button
+            id="tab-compliance"
+            onClick={() => setActiveTab('compliance')}
+            className={`py-3 px-3 text-xs font-semibold border-b-2 whitespace-nowrap transition-colors flex items-center space-x-1.5 ${
+              activeTab === 'compliance'
+                ? 'border-navy-900 text-navy-900'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Scale className="w-3.5 h-3.5 text-blue-600" />
+            <span>Legal Validity & Compliance</span>
+          </button>
         </nav>
       </div>
 
@@ -1557,6 +1571,14 @@ export default function DealWorkspacePage() {
             </div>
           ) : (
             <div className="space-y-6">
+              {/* Mandatory Legal Validity & Government Authorization Panel */}
+              <LegalCompliancePanel
+                dealId={dealId}
+                deal={deal}
+                currentVersion={currentVersion}
+                onRefresh={loadDealWorkspace}
+              />
+
               {/* Version Banner & Review Controls */}
               <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="flex items-center space-x-3">
@@ -2232,7 +2254,19 @@ export default function DealWorkspacePage() {
         </div>
       )}
 
-
+      {/* ========================================================= */}
+      {/* TAB 6: GOVERNMENT LEGAL VALIDITY & OFFICIAL COMPLIANCE     */}
+      {/* ========================================================= */}
+      {activeTab === 'compliance' && (
+        <div className="space-y-6">
+          <LegalCompliancePanel
+            dealId={dealId}
+            deal={deal}
+            currentVersion={currentVersion}
+            onRefresh={loadDealWorkspace}
+          />
+        </div>
+      )}
 
       {/* Invite Modal */}
       <InviteModal

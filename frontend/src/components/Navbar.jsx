@@ -7,11 +7,12 @@ import {
   Bell, 
   User, 
   LogOut, 
-  ChevronDown
+  ChevronDown,
+  ShieldCheck,
 } from 'lucide-react';
 import NotificationsMenu from './NotificationsMenu';
 
-export default function Navbar({ onOpenNewDeal, onOpenAuth, onOpenProfile }) {
+export default function Navbar({ onOpenNewDeal, onOpenAuth, onOpenProfile, onOpenAdminAuth }) {
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -44,7 +45,7 @@ export default function Navbar({ onOpenNewDeal, onOpenAuth, onOpenProfile }) {
 
           {/* Center Navigation Links (when authenticated) */}
           {user && (
-            <nav className="hidden md:flex items-center space-x-1">
+            <nav className="hidden md:flex items-center space-x-2">
               <Link
                 to="/dashboard"
                 className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -55,6 +56,14 @@ export default function Navbar({ onOpenNewDeal, onOpenAuth, onOpenProfile }) {
               >
                 My Deals
               </Link>
+              <button
+                onClick={onOpenAdminAuth}
+                className="px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:text-navy-900 hover:bg-slate-50 transition-colors flex items-center space-x-1.5"
+                title="View Government Integrations & Statutory Exclusions"
+              >
+                <span className="w-2 h-2 rounded-full bg-blue-600" />
+                <span>Government Integrations Register</span>
+              </button>
             </nav>
           )}
 
@@ -122,6 +131,17 @@ export default function Navbar({ onOpenNewDeal, onOpenAuth, onOpenProfile }) {
                       >
                         <User className="w-3.5 h-3.5 text-slate-500" />
                         <span>Profile Settings</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setShowUserMenu(false);
+                          if (onOpenAdminAuth) onOpenAdminAuth();
+                        }}
+                        className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center space-x-2"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
+                        <span>Government Integrations Register</span>
                       </button>
 
                       <div className="border-t border-slate-100 my-1"></div>

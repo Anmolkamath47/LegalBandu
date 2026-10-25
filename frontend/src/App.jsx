@@ -10,12 +10,15 @@ import DashboardPage from './pages/DashboardPage';
 import DealWorkspacePage from './pages/DealWorkspacePage';
 import InvitePage from './pages/InvitePage';
 
+import AdminAuthorizationModal from './components/AdminAuthorizationModal';
+
 function AppContent() {
   const { user, loading } = useAuth();
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('signin');
   const [newDealModalOpen, setNewDealModalOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [adminAuthModalOpen, setAdminAuthModalOpen] = useState(false);
 
   function handleOpenAuth(mode = 'signin') {
     setAuthModalMode(mode);
@@ -44,6 +47,7 @@ function AppContent() {
         onOpenAuth={handleOpenAuth}
         onOpenNewDeal={handleOpenNewDeal}
         onOpenProfile={() => setProfileModalOpen(true)}
+        onOpenAdminAuth={() => setAdminAuthModalOpen(true)}
       />
 
       <main className="flex-1">
@@ -77,7 +81,7 @@ function AppContent() {
             path="/deal/:dealId"
             element={
               user ? (
-                <DealWorkspacePage />
+                <DealWorkspacePage onOpenAdminAuth={() => setAdminAuthModalOpen(true)} />
               ) : (
                 <Navigate to="/" replace />
               )
@@ -109,6 +113,11 @@ function AppContent() {
       <ProfileModal
         isOpen={profileModalOpen}
         onClose={() => setProfileModalOpen(false)}
+      />
+
+      <AdminAuthorizationModal
+        isOpen={adminAuthModalOpen}
+        onClose={() => setAdminAuthModalOpen(false)}
       />
     </div>
   );
