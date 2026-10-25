@@ -125,6 +125,7 @@ class InvitationInfo(BaseModel):
     currency: str
     is_expired: bool
     is_already_accepted: bool
+    invitation_email: Optional[str] = None
 
 
 # ==========================================

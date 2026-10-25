@@ -1,7 +1,8 @@
 import secrets
 import hashlib
 from datetime import datetime, timezone, timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
+from urllib.parse import urlparse
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user, verify_deal_participant, AuthenticatedUser
@@ -24,6 +25,7 @@ def hash_token(raw_token: str) -> str:
 def create_invitation(
     deal_id: str,
     data: InvitationCreate,
+    request: Request,
     current_user: AuthenticatedUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -75,7 +77,14 @@ def create_invitation(
         },
     )
 
-    frontend_base = settings.FRONTEND_URL.rstrip("/")
+    # Determine frontend URL: prefer client origin/referer, fallback to settings
+    origin = request.headers.get("origin") or request.headers.get("referer")
+    if origin:
+        parsed = urlparse(origin)
+        frontend_base = f"{parsed.scheme}://{parsed.netloc}"
+    else:
+        frontend_base = settings.FRONTEND_URL.rstrip("/")
+
     invitation_url = f"{frontend_base}/invite/{raw_token}"
 
     return InvitationOut(
@@ -138,6 +147,7 @@ def get_invitation_info(
         currency=deal.currency,
         is_expired=is_expired,
         is_already_accepted=is_already_accepted,
+        invitation_email=participant.invitation_email,
     )
 
 

@@ -1903,6 +1903,7 @@ export default function DealWorkspacePage() {
         onClose={() => setShowInviteModal(false)}
         dealId={deal.id}
         dealTitle={deal.title}
+        creatorName={user?.user_metadata?.full_name || user?.email}
       />
 
       {/* Immediate AI Detector Alert Modal */}
