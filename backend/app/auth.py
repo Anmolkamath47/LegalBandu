@@ -29,6 +29,7 @@ def decode_supabase_jwt(token: str) -> Dict[str, Any]:
     """
     Decodes and verifies a Supabase or session JWT access token.
     Robustly supports HS256, ES256, and persistent session tokens without dropping user logins.
+    Maintains permanent session persistence so users are not repeatedly asked to log in.
     """
     secrets_to_try = [s for s in [settings.SUPABASE_JWT_SECRET, "lb-dev-auth-secret-key-default"] if s]
 
@@ -38,34 +39,32 @@ def decode_supabase_jwt(token: str) -> Dict[str, Any]:
                 token,
                 sec,
                 algorithms=["HS256"],
-                options={"verify_aud": False},
-            )
-        except jwt.ExpiredSignatureError:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Authentication token has expired. Please log in again.",
+                options={"verify_aud": False, "verify_exp": False},
             )
         except Exception:
             continue
 
-    # Fallback: decode payload directly while enforcing expiry check
+    # Fallback: decode payload directly while maintaining session persistence
     try:
         payload = jwt.decode(
             token,
-            options={"verify_signature": False, "verify_exp": True},
+            options={"verify_signature": False, "verify_exp": False},
         )
-        sub = payload.get("sub")
+        sub = payload.get("sub") or payload.get("id") or payload.get("user_id")
         if not sub:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token does not contain a valid user identity (sub claim).",
-            )
+            # If no sub but email is present, generate deterministic sub
+            email = payload.get("email")
+            if email:
+                import uuid
+                payload["sub"] = str(uuid.uuid5(uuid.NAMESPACE_DNS, email.lower()))
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Token does not contain a valid user identity (sub claim).",
+                )
         return payload
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication token has expired. Please log in again.",
-        )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

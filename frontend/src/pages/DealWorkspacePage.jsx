@@ -732,81 +732,109 @@ export default function DealWorkspacePage() {
         {/* Feature 1: Call Recording to Agreement */}
         <div 
           onClick={() => setActiveTab('call_recording')}
-          className={`cursor-pointer rounded-xl p-4.5 border transition-all ${
+          className={`cursor-pointer rounded-xl p-5 border transition-all flex flex-col justify-between ${
             activeTab === 'call_recording'
-              ? 'bg-blue-900/10 border-blue-600 shadow-md ring-2 ring-blue-500/30'
-              : 'bg-white hover:bg-blue-50/40 border-slate-200 hover:border-blue-300 shadow-sm'
+              ? 'bg-blue-50/40 border-navy-900 shadow-md ring-1 ring-navy-900/20'
+              : 'bg-white hover:bg-slate-50 border-slate-200 hover:border-slate-300 shadow-sm'
           }`}
         >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2.5">
-              <span className="p-2.5 bg-blue-100 text-blue-700 rounded-lg">
-                <Mic className="w-5 h-5 text-blue-600" />
-              </span>
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
-                  FEATURE 1
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2.5">
+                <span className="w-9 h-9 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center border border-blue-100">
+                  <Mic className="w-4 h-4" />
                 </span>
-                <h4 className="text-sm font-bold text-navy-900 mt-0.5">
-                  Call Recording & AI Key Points
-                </h4>
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full border border-slate-200">
+                  FEATURE 1 • AUDIO PIPELINE
+                </span>
               </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveTab('call_recording');
+                }}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md shadow-sm transition-colors flex items-center space-x-1 ${
+                  activeTab === 'call_recording'
+                    ? 'bg-navy-900 text-white'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
+                }`}
+              >
+                <span>{activeTab === 'call_recording' ? 'Active View' : 'Open Recorder'}</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setActiveTab('call_recording');
-              }}
-              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-md shadow-sm transition-colors flex items-center space-x-1"
-            >
-              <span>{activeTab === 'call_recording' ? 'Active View' : 'Open Recorder'}</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
+            <div>
+              <h4 className="text-sm font-bold text-navy-900">
+                Call Recording & AI Key Points
+              </h4>
+              <p className="text-xs text-slate-600 leading-relaxed mt-1">
+                Record phone calls with live mic or upload audio files (.mp3, .wav, .m4a, .webm). 
+                AI analyzes dialogue and drafts agreement key points directly.
+              </p>
+            </div>
           </div>
-          <p className="text-xs text-slate-600 mt-2.5">
-            Record phone calls or upload audio files (.mp3, .wav, .m4a, .webm). AI analyzes dialogue and drafts agreement key points directly.
-          </p>
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium">
+            <span>Live mic & audio files</span>
+            <span className="text-blue-700 font-semibold flex items-center space-x-1">
+              <span>Auto-drafts agreement</span>
+              <ChevronRight className="w-3 h-3" />
+            </span>
+          </div>
         </div>
 
         {/* Feature 2: Bond Upload & AI Detector */}
         <div 
           onClick={() => setActiveTab('bonds')}
-          className={`cursor-pointer rounded-xl p-4.5 border transition-all ${
+          className={`cursor-pointer rounded-xl p-5 border transition-all flex flex-col justify-between ${
             activeTab === 'bonds'
-              ? 'bg-amber-900/10 border-amber-600 shadow-md ring-2 ring-amber-500/30'
-              : 'bg-white hover:bg-amber-50/40 border-slate-200 hover:border-amber-300 shadow-sm'
+              ? 'bg-amber-50/40 border-navy-900 shadow-md ring-1 ring-navy-900/20'
+              : 'bg-white hover:bg-slate-50 border-slate-200 hover:border-slate-300 shadow-sm'
           }`}
         >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2.5">
-              <span className="p-2.5 bg-amber-100 text-amber-700 rounded-lg">
-                <Scale className="w-5 h-5 text-amber-600" />
-              </span>
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
-                  FEATURE 2
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2.5">
+                <span className="w-9 h-9 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center border border-amber-100">
+                  <Scale className="w-4 h-4" />
                 </span>
-                <h4 className="text-sm font-bold text-navy-900 mt-0.5">
-                  Upload Bond & AI Synthetic Detector
-                </h4>
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full border border-slate-200">
+                  FEATURE 2 • BOND DETECTOR
+                </span>
               </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveTab('bonds');
+                }}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md shadow-sm transition-colors flex items-center space-x-1 ${
+                  activeTab === 'bonds'
+                    ? 'bg-navy-900 text-white'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
+                }`}
+              >
+                <span>{activeTab === 'bonds' ? 'Active View' : 'Upload & Scan'}</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setActiveTab('bonds');
-              }}
-              className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-md shadow-sm transition-colors flex items-center space-x-1"
-            >
-              <span>{activeTab === 'bonds' ? 'Active View' : 'Upload & Scan'}</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
+            <div>
+              <h4 className="text-sm font-bold text-navy-900">
+                Upload Bond & AI Synthetic Detector
+              </h4>
+              <p className="text-xs text-slate-600 leading-relaxed mt-1">
+                Upload legal bonds, indemnity deeds, or e-stamps (.pdf, .docx, .txt). 
+                Multi-vector algorithmic scan flags synthetic/AI text with immediate alerts.
+              </p>
+            </div>
           </div>
-          <p className="text-xs text-slate-600 mt-2.5">
-            Upload legal bond, indemnity deed, or e-stamp. Multi-vector algorithmic scan flags synthetic/AI text with immediate alerts.
-          </p>
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium">
+            <span>Instant alert + 1-click convert</span>
+            <span className="text-amber-700 font-semibold flex items-center space-x-1">
+              <span>{bonds.length} bond{bonds.length !== 1 ? 's' : ''} uploaded</span>
+              <ChevronRight className="w-3 h-3" />
+            </span>
+          </div>
         </div>
       </div>
 
