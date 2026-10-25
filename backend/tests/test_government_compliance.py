@@ -22,13 +22,14 @@ def test_authorization_providers_endpoint():
     r = client.get("/api/compliance/authorization-providers", headers=headers)
     assert r.status_code == 200
     providers = r.json()
-    assert len(providers) >= 4
+    assert len(providers) >= 5
 
     provider_codes = [p["provider_code"].lower() for p in providers]
     assert "nesl_dde" in provider_codes
     assert "shcil_estamp" in provider_codes
     assert "icegate_customs" in provider_codes
     assert "protean_esp" in provider_codes
+    assert "emudhra_esp" in provider_codes
 
     # Verify NeSL provider data
     nesl = next(p for p in providers if p["provider_code"].lower() == "nesl_dde")

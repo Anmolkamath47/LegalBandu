@@ -13,7 +13,7 @@
 3. **Approved Providers Required:** Where an instrument requires official e-stamping, electronic signature, information utility submission, or customs filing, Legalbandu must interface with authorized licensed entities:
    - **e-Stamping Central Record Keeping Agency (CRA):** Stock Holding Corporation of India Limited (SHCIL) or State e-Gras/Treasury Portals.
    - **Digital Document Execution (DDE) & Information Utility:** National E-Governance Services Limited (NeSL) under the Insolvency and Bankruptcy Code (IBC), 2016 and state revenue authorizations.
-   - **eSign Service Providers (ESP):** Licensed by the Controller of Certifying Authorities (CCA) under Section 24 of the IT Act (e.g. Protean eGov Technologies / NSDL, C-DAC).
+   - **eSign Service Providers (ESP):** Licensed by the Controller of Certifying Authorities (CCA) under Section 24 of the IT Act (e.g. eMudhra Limited, Protean eGov Technologies / NSDL, C-DAC).
    - **Customs & Trade Gateway:** Directorate General of Systems and Data Management, Central Board of Indirect Taxes and Customs (CBIC) via ICEGATE.
 
 ---

@@ -457,9 +457,11 @@ export default function LegalCompliancePanel({ dealId, deal, currentVersion, onR
         {/* TAB 3: e-Stamping & CRA Protocol */}
         {activeTab === 'stamping' && (
           <div className="space-y-4 text-xs">
-            <div className="p-3.5 bg-teal-50 border border-teal-200 rounded-lg text-teal-950">
-              <span className="font-bold">Indian Stamp Act (1899) & State Stamp Duty: </span>
-              Under Section 35 of the Indian Stamp Act, any instrument chargeable with duty is inadmissible in evidence unless duly stamped. Record the genuine e-Stamp certificate obtained via SHCIL or NeSL DDE below.
+            <div className="p-3.5 bg-teal-50 border border-teal-200 rounded-lg text-teal-950 space-y-1">
+              <div className="font-bold">Indian Stamp Act (1899) & State-Aware e-Stamping:</div>
+              <p>
+                Under Section 35 of the Indian Stamp Act, any instrument chargeable with duty is inadmissible in evidence unless duly stamped. Do not assume an ordinary PDF or a generic ₹100 stamp paper is sufficient. Under the amended Karnataka Stamp Act, duty depends on the specific instrument category (e.g. Article 5 agreements, Article 34 indemnity, Article 12 bonds) and recognizes digital e-stamping via SHCIL / NeSL DDE.
+              </p>
             </div>
 
             <form onSubmit={handleRecordStampEvidence} className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
@@ -506,7 +508,7 @@ export default function LegalCompliancePanel({ dealId, deal, currentVersion, onR
                     className="w-full p-2 border border-slate-300 rounded-md bg-white outline-none focus:border-navy-900"
                   >
                     <option value="Central / Pan-India">Central (Schedule I)</option>
-                    <option value="Karnataka">Karnataka (Article 5 - ₹100/₹200)</option>
+                    <option value="Karnataka">Karnataka (Amended Act: Art 5(j) ₹500 / Art 34 Indemnity / Art 12 Bond)</option>
                     <option value="Maharashtra">Maharashtra (Article 5 - ₹100/₹500)</option>
                     <option value="Delhi NCT">Delhi NCT (Article 5 - ₹50/₹100)</option>
                     <option value="Tamil Nadu">Tamil Nadu (Article 5)</option>

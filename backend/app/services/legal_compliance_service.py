@@ -124,6 +124,28 @@ INITIAL_PROVIDERS = [
         "responsible_admin_email": "admin@legalbandu.com",
         "is_sandbox_only": True,
     },
+    {
+        "provider_code": "emudhra_esp",
+        "name": "eMudhra Limited (eSign & Certifying Authority)",
+        "authority_type": "Licensed Certifying Authority (CA) & eSign Service Provider (ESP)",
+        "official_website": "https://www.emudhra.com",
+        "documentation_url": "https://www.emudhra.com/esign",
+        "authorization_type": "Licensed by Controller of Certifying Authorities (CCA) under Section 24 of Information Technology Act, 2000",
+        "eligible_legal_entity": "Application Service Providers (ASPs), Enterprises, BFSI, LegalTech Platforms",
+        "eligibility_criteria": "CCA empanelment guidelines; application security audit by CERT-In empaneled auditor; UIDAI authentication API agreement.",
+        "application_procedure": "Execute ASP Agreement with eMudhra; integrate eSign Gateway API; configure HSM or cloud DSC; obtain CERT-In security clearance.",
+        "required_corporate_docs": ["Certificate of Incorporation", "PAN Card", "Board Resolution", "Signatory KYC", "GSTIN"],
+        "technical_certifications": ["CERT-In Application VAPT", "ISO 27001:2013", "FIPS 140-2 Level 3 HSM Compliance", "CCA eSign 2.1 Specification"],
+        "agreements_fees_obligations": "ASP license fee; per-signature usage fee (Aadhaar OTP, Biometric, or Paperless DSC eSign); statutory SLA compliance.",
+        "api_access_details": "eMudhra emAS / eSign Gateway REST and SOAP APIs supporting PKCS#7 signing, PDF signing, and Aadhaar eKYC.",
+        "authorization_status": "ELIGIBILITY_REVIEW_REQUIRED",
+        "approval_reference": None,
+        "geographic_coverage": "Pan-India & International (PKI WebTrust accredited)",
+        "document_category_coverage": ["A", "B", "E"],
+        "restrictions": "Cannot be used for instruments excluded under First Schedule of IT Act, 2000 (e.g. Wills, Trusts, Real Estate Conveyances).",
+        "responsible_admin_email": "admin@legalbandu.com",
+        "is_sandbox_only": True,
+    },
 ]
 
 # Baseline Statutory Exclusions (First Schedule to Information Technology Act, 2000)
