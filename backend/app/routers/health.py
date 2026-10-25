@@ -24,4 +24,9 @@ def check_health(db: Session = Depends(get_db)):
         "version": settings.VERSION,
         "database_connected": db_connected,
         "gemini_configured": is_gemini_configured(),
+        "features": {
+            "bonds": True,
+            "call_recording": True,
+            "ai_detector": True,
+        },
     }

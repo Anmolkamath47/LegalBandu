@@ -5,7 +5,7 @@ from typing import Optional
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Legalbandu"
-    VERSION: str = "1.0.0"
+    VERSION: str = "1.1.0"
     API_V1_PREFIX: str = "/api"
 
     # Supabase credentials
