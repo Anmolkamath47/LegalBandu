@@ -219,7 +219,11 @@ export default function DealWorkspacePage() {
 
       api.getActivity(dealId).then(setActivityLogs).catch(() => {});
     } catch (err) {
-      alert(err.message || 'Failed to analyze call recording.');
+      if (err.status === 404 || err.message === 'Not Found' || err.message?.includes('Unsupported file format')) {
+        alert('Backend Deployment Pending: The Render backend (https://legalbandu.onrender.com) is currently updating to the latest build with audio analysis. If this persists, please click "Manual Deploy" -> "Deploy latest commit" in your Render dashboard (https://dashboard.render.com).');
+      } else {
+        alert(err.message || 'Failed to analyze call recording.');
+      }
     } finally {
       setImporting(false);
     }
@@ -254,7 +258,11 @@ export default function DealWorkspacePage() {
 
       api.getActivity(dealId).then(setActivityLogs).catch(() => {});
     } catch (err) {
-      alert(err.message || 'Failed to scan and upload bond document.');
+      if (err.status === 404 || err.message === 'Not Found') {
+        alert('Backend Deployment Pending: The Render backend (https://legalbandu.onrender.com) is currently updating to the latest build with bond scanning. If this persists, please click "Manual Deploy" -> "Deploy latest commit" in your Render dashboard (https://dashboard.render.com).');
+      } else {
+        alert(err.message || 'Failed to scan and upload bond document.');
+      }
     } finally {
       setScanningBond(false);
     }
