@@ -14,7 +14,10 @@ import {
   Lock,
   Loader2,
   Sparkles,
-  LogOut
+  LogOut,
+  Scale,
+  XCircle,
+  X
 } from 'lucide-react';
 
 export default function InvitePage() {
@@ -34,6 +37,11 @@ export default function InvitePage() {
   const [authFullName, setAuthFullName] = useState('');
   const [authSubmitting, setAuthSubmitting] = useState(false);
   const [authError, setAuthError] = useState('');
+
+  const [showDeclineModal, setShowDeclineModal] = useState(false);
+  const [declineReason, setDeclineReason] = useState('');
+  const [declining, setDeclining] = useState(false);
+  const [declinedSuccess, setDeclinedSuccess] = useState(false);
 
   const loadInviteInfo = useCallback(async () => {
     setLoading(true);
@@ -70,6 +78,21 @@ export default function InvitePage() {
       setErrorMsg(err.message || 'Failed to accept invitation.');
     } finally {
       setAccepting(false);
+    }
+  }
+
+  async function handleDecline(e) {
+    if (e) e.preventDefault();
+    setDeclining(true);
+    setErrorMsg('');
+    try {
+      await api.declineInvitation(token, { reason: declineReason.trim() || undefined });
+      setDeclinedSuccess(true);
+      setShowDeclineModal(false);
+    } catch (err) {
+      setErrorMsg(err.message || 'Failed to decline invitation.');
+    } finally {
+      setDeclining(false);
     }
   }
 
@@ -132,15 +155,23 @@ export default function InvitePage() {
       <div className="w-full max-w-lg bg-white rounded-xl shadow-xl border border-slate-200 p-6 sm:p-8 text-center animate-in fade-in">
         
         {/* Header Icon */}
-        <div className="w-12 h-12 rounded-full bg-navy-900 text-white flex items-center justify-center mx-auto mb-4 shadow-md">
-          <FileText className="w-6 h-6 text-blue-400" />
+        <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 shadow-md ${
+          info?.role === 'lawyer' ? 'bg-purple-950 text-white' : 'bg-navy-900 text-white'
+        }`}>
+          {info?.role === 'lawyer' ? (
+            <Scale className="w-6 h-6 text-purple-300" />
+          ) : (
+            <FileText className="w-6 h-6 text-blue-400" />
+          )}
         </div>
 
         <h1 className="text-xl font-bold text-navy-900">
-          Deal Room Invitation
+          {info?.role === 'lawyer' ? 'Legal Counsel Review Invitation' : 'Deal Room Invitation'}
         </h1>
         <p className="text-xs text-slate-500 mt-1">
-          You have been invited to review, collaborate, and confirm agreement terms.
+          {info?.role === 'lawyer'
+            ? 'You have been formally invited to review this commercial agreement draft and advise on terms.'
+            : 'You have been invited to review, collaborate, and confirm agreement terms.'}
         </p>
 
         {loading ? (
@@ -165,17 +196,41 @@ export default function InvitePage() {
               </div>
             </div>
           </div>
+        ) : declinedSuccess || info?.is_declined ? (
+          <div className="mt-6 p-6 bg-slate-50 border border-slate-200 rounded-lg text-center space-y-3">
+            <div className="w-10 h-10 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center mx-auto">
+              <XCircle className="w-6 h-6 text-slate-600" />
+            </div>
+            <h3 className="text-sm font-bold text-navy-900">Invitation Declined</h3>
+            <p className="text-xs text-slate-600">
+              This invitation has been formally declined. The agreement creator has been notified.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="mt-2 px-4 py-2 bg-navy-900 text-white rounded text-xs font-semibold hover:bg-navy-800"
+            >
+              Return to Home
+            </button>
+          </div>
         ) : info ? (
           <div className="mt-6 space-y-4 text-left">
             {/* Deal Overview Card */}
             <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-2.5">
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                  Agreement Title
-                </span>
-                <span className="text-sm font-bold text-navy-900 block">
-                  {info.deal_title}
-                </span>
+              <div className="flex items-start justify-between">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                    Agreement Title
+                  </span>
+                  <span className="text-sm font-bold text-navy-900 block">
+                    {info.deal_title}
+                  </span>
+                </div>
+                {info.role === 'lawyer' && (
+                  <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-purple-100 text-purple-800 rounded border border-purple-200">
+                    Lawyer Review
+                  </span>
+                )}
               </div>
 
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-700">
@@ -258,41 +313,60 @@ export default function InvitePage() {
                     </button>
                   </div>
                 ) : (
-                  <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-md text-xs text-emerald-900 flex items-center justify-between">
+                  <div className={`p-3.5 rounded-md text-xs flex items-center justify-between border ${
+                    info.role === 'lawyer'
+                      ? 'bg-purple-50 border-purple-200 text-purple-950'
+                      : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                  }`}>
                     <div>
-                      <span className="text-[10px] uppercase font-bold text-emerald-700 block tracking-wider">
-                        Ready to Join as Counterparty
+                      <span className={`text-[10px] uppercase font-bold block tracking-wider ${
+                        info.role === 'lawyer' ? 'text-purple-700' : 'text-emerald-700'
+                      }`}>
+                        {info.role === 'lawyer' ? 'Ready to Join as Legal Counsel' : 'Ready to Join as Counterparty'}
                       </span>
-                      <span className="font-semibold text-emerald-950">
+                      <span className="font-semibold">
                         {user.email}
                       </span>
                     </div>
-                    <span className="text-[11px] text-emerald-700 font-medium flex items-center space-x-1">
-                      <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                    <span className="text-[11px] font-medium flex items-center space-x-1">
+                      <ShieldCheck className={`w-4 h-4 ${info.role === 'lawyer' ? 'text-purple-600' : 'text-emerald-600'}`} />
                       <span>Authenticated</span>
                     </span>
                   </div>
                 )}
 
                 {!isEmailMismatch && (
-                  <button
-                    id="btn-accept-invitation"
-                    onClick={handleAccept}
-                    disabled={accepting}
-                    className="w-full py-3 bg-navy-900 hover:bg-navy-800 text-white text-xs font-semibold rounded-md shadow-md transition-all flex items-center justify-center space-x-2 disabled:opacity-50"
-                  >
-                    {accepting ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Joining Deal Room...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>Accept & Enter Deal Room</span>
-                        <ArrowRight className="w-4 h-4 text-blue-300" />
-                      </>
-                    )}
-                  </button>
+                  <div className="space-y-2">
+                    <button
+                      id="btn-accept-invitation"
+                      onClick={handleAccept}
+                      disabled={accepting || declining}
+                      className={`w-full py-3 text-white text-xs font-semibold rounded-md shadow-md transition-all flex items-center justify-center space-x-2 disabled:opacity-50 ${
+                        info.role === 'lawyer' ? 'bg-purple-900 hover:bg-purple-800' : 'bg-navy-900 hover:bg-navy-800'
+                      }`}
+                    >
+                      {accepting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>{info.role === 'lawyer' ? 'Opening Legal Review Room...' : 'Joining Deal Room...'}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>{info.role === 'lawyer' ? 'Accept & Begin Legal Review' : 'Accept & Enter Deal Room'}</span>
+                          <ArrowRight className="w-4 h-4 text-blue-300" />
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowDeclineModal(true)}
+                      disabled={accepting || declining}
+                      className="w-full py-2 bg-white hover:bg-red-50 text-red-600 border border-red-200 text-xs font-semibold rounded-md transition-colors"
+                    >
+                      Decline Invitation
+                    </button>
+                  </div>
                 )}
               </div>
             ) : (
@@ -399,10 +473,76 @@ export default function InvitePage() {
                 <p className="text-[10px] text-slate-400 text-center">
                   By joining, you enter a mutually confirmed deal room where agreements can be negotiated and confirmed.
                 </p>
+
+                <div className="pt-2 border-t border-slate-100 text-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeclineModal(true)}
+                    className="text-xs text-red-600 hover:underline font-medium"
+                  >
+                    Decline this invitation
+                  </button>
+                </div>
               </div>
             )}
           </div>
         ) : null}
+
+        {/* Decline Confirmation Modal */}
+        {showDeclineModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-950/60 backdrop-blur-sm animate-in fade-in">
+            <div className="w-full max-w-sm bg-white rounded-xl shadow-2xl border border-slate-200 p-5 text-left space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <div className="flex items-center space-x-1.5 text-red-700">
+                  <XCircle className="w-4 h-4" />
+                  <span className="text-xs font-bold">Decline Invitation</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowDeclineModal(false)}
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <p className="text-xs text-slate-600">
+                Are you sure you want to decline this invitation? The deal owner will be notified of your decision.
+              </p>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  Reason for declining (Optional)
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="e.g. Conflict of interest, outside practice area, or unavailable..."
+                  value={declineReason}
+                  onChange={(e) => setDeclineReason(e.target.value)}
+                  className="w-full p-2 text-xs border border-slate-300 rounded focus:ring-1 focus:ring-navy-900 outline-none resize-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowDeclineModal(false)}
+                  className="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDecline}
+                  disabled={declining}
+                  className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded shadow-sm disabled:opacity-50"
+                >
+                  {declining ? 'Declining...' : 'Confirm Decline'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

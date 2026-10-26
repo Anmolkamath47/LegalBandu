@@ -270,6 +270,48 @@ export const api = {
   }),
   getDealReadinessChecklist: (dealId) => request(`/deals/${dealId}/readiness-checklist`),
   getDealAuditCertificate: (dealId) => request(`/deals/${dealId}/audit-certificate`),
+
+  // Agreement Assistance
+  getAgreementAssistance: (dealId) => request(`/deals/${dealId}/assistance`),
+  updateAssistanceTopic: (dealId, topicId, payload) => request(`/deals/${dealId}/assistance/topics/${topicId}`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }),
+  applyAssistanceToDraft: (dealId, payload = {}) => request(`/deals/${dealId}/assistance/apply-to-draft`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }),
+  initializeGeneralTemplate: (dealId) => request(`/deals/${dealId}/assistance/initialize-template`, {
+    method: 'POST',
+  }),
+
+  // Lawyer Review
+  createLawyerInvitation: (dealId, payload) => request(`/deals/${dealId}/lawyer-invitations`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }),
+  getLawyerReview: (dealId) => request(`/deals/${dealId}/lawyer-review`),
+  createLawyerSuggestion: (dealId, payload) => request(`/deals/${dealId}/lawyer-suggestions`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }),
+  decideLawyerSuggestion: (dealId, suggestionId, payload) => request(`/deals/${dealId}/lawyer-suggestions/${suggestionId}/decision`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  }),
+  postLawyerDiscussion: (dealId, suggestionId, payload) => request(`/deals/${dealId}/lawyer-suggestions/${suggestionId}/discuss`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }),
+  updateLawyerReviewStatus: (dealId, payload) => request(`/deals/${dealId}/lawyer-review/status`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }),
+  declineInvitation: (token, payload = {}) => request(`/invitations/${token}/decline`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }),
 };
+
 
 

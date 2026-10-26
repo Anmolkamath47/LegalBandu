@@ -10,6 +10,8 @@ from .activity import router as activity_router
 from .notifications import router as notifications_router
 from .bonds import router as bonds_router
 from .compliance_router import router as compliance_router
+from .assistance_router import router as assistance_router
+from .lawyer_reviews import router as lawyer_reviews_router
 
 __all__ = [
     "health_router",
@@ -24,5 +26,7 @@ __all__ = [
     "notifications_router",
     "bonds_router",
     "compliance_router",
+    "assistance_router",
+    "lawyer_reviews_router",
 ]
 

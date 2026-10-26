@@ -29,11 +29,14 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import InviteModal from '../components/InviteModal';
+import InviteLawyerModal from '../components/InviteLawyerModal';
 import AIDetectorAlertModal from '../components/AIDetectorAlertModal';
 import AudioPlayerWidget from '../components/AudioPlayerWidget';
 import AudioCallRecorder from '../components/AudioCallRecorder';
 import BondUploadWidget from '../components/BondUploadWidget';
 import LegalCompliancePanel from '../components/LegalCompliancePanel';
+import AgreementAssistancePanel from '../components/AgreementAssistancePanel';
+import LawyerReviewPanel from '../components/LawyerReviewPanel';
 
 export default function DealWorkspacePage() {
   const { dealId } = useParams();
@@ -47,6 +50,8 @@ export default function DealWorkspacePage() {
 
   // Modals & Sub-states
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showInviteLawyerModal, setShowInviteLawyerModal] = useState(false);
+  const [agreementSubView, setAgreementSubView] = useState('draft'); // 'draft' | 'assistance' | 'lawyer_review'
   const [showChangeRequestModal, setShowChangeRequestModal] = useState(false);
   const [changeRequestComment, setChangeRequestComment] = useState('');
 
@@ -644,6 +649,31 @@ export default function DealWorkspacePage() {
     }
   }
 
+  // Handle draft update from Assistance or Lawyer Suggestions
+  const handleDraftUpdated = useCallback(async (newV) => {
+    if (newV) {
+      setVersions((prev) => [newV, ...prev.filter((v) => v.id !== newV.id)]);
+      setCurrentVersion(newV);
+      initEditFields(newV);
+    }
+    try {
+      const [updatedDeal, vers] = await Promise.all([
+        api.getDeal(dealId).catch(() => null),
+        api.getAgreements(dealId).catch(() => []),
+      ]);
+      if (updatedDeal) setDeal(updatedDeal);
+      if (vers && vers.length > 0) {
+        setVersions(vers);
+        if (!newV) {
+          setCurrentVersion(vers[0]);
+          initEditFields(vers[0]);
+        }
+      }
+    } catch (e) {
+      console.warn('Could not refresh deal after draft update:', e);
+    }
+  }, [dealId]);
+
   // 10. Propose Amendment Handler
   async function handleProposeAmendment(e) {
     e.preventDefault();
@@ -723,10 +753,14 @@ export default function DealWorkspacePage() {
   const participants = deal.participants || [];
   const creator = participants.find((p) => p.role === 'creator');
   const counterparty = participants.find((p) => p.role === 'counterparty');
+  const lawyerParticipant = participants.find((p) => p.role === 'lawyer');
   const hasCounterpartyJoined = Boolean(counterparty && counterparty.user_id);
+  const hasLawyerJoined = Boolean(lawyerParticipant && lawyerParticipant.user_id);
 
-  // Check current user's approval status for currentVersion
+  // Check current user role and approval status for currentVersion
   const myParticipant = participants.find((p) => p.user_id === user?.id);
+  const isLawyer = myParticipant?.role === 'lawyer';
+  const isCreator = myParticipant?.role === 'creator' || deal.creator_id === user?.id;
   const myApproval = currentVersion?.approvals?.find((a) => a.participant_id === myParticipant?.id);
   const hasApprovedThisVersion = (myApproval?.status === 'approved');
 
@@ -784,6 +818,15 @@ export default function DealWorkspacePage() {
             <span>{hasCounterpartyJoined ? 'Invite Link' : 'Invite Counterparty'}</span>
           </button>
 
+          <button
+            id="btn-invite-lawyer"
+            onClick={() => setShowInviteLawyerModal(true)}
+            className="px-3 py-2 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 text-xs font-semibold rounded-md shadow-sm flex items-center space-x-1.5 transition-colors"
+          >
+            <Scale className="w-4 h-4 text-purple-600" />
+            <span>{hasLawyerJoined ? 'Lawyer Review' : 'Invite Lawyer'}</span>
+          </button>
+
           {!currentVersion ? (
             <button
               id="btn-header-generate-agreement"
@@ -797,9 +840,12 @@ export default function DealWorkspacePage() {
           ) : (
             <button
               id="btn-header-view-agreement"
-              onClick={() => setActiveTab('agreement')}
+              onClick={() => {
+                setActiveTab('agreement');
+                setAgreementSubView('draft');
+              }}
               className={`px-3 py-2 text-xs rounded-md shadow-sm flex items-center space-x-1.5 transition-colors border ${
-                activeTab === 'agreement'
+                activeTab === 'agreement' && agreementSubView === 'draft'
                   ? 'bg-blue-50 text-blue-800 border-blue-300 font-bold'
                   : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300 font-semibold'
               }`}
@@ -822,8 +868,8 @@ export default function DealWorkspacePage() {
         </div>
       </div>
 
-      {/* Participants Verification Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* Participants Verification Cards (Creator, Counterparty, Legal Counsel) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Creator Card */}
         <div className="p-4 bg-white rounded-lg border border-slate-200 shadow-sm flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -834,7 +880,7 @@ export default function DealWorkspacePage() {
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
                 Deal Creator
               </span>
-              <span className="text-xs font-bold text-slate-900 block">
+              <span className="text-xs font-bold text-slate-900 block truncate max-w-[120px]">
                 {creator?.full_name || deal.creator_name || 'Creator'}
               </span>
             </div>
@@ -855,15 +901,15 @@ export default function DealWorkspacePage() {
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
                 Counterparty
               </span>
-              <span className="text-xs font-bold text-slate-900 block">
-                {counterparty?.full_name || counterparty?.email || (hasCounterpartyJoined ? 'Joined' : 'Pending Invitation')}
+              <span className="text-xs font-bold text-slate-900 block truncate max-w-[120px]">
+                {counterparty?.full_name || counterparty?.email || (hasCounterpartyJoined ? 'Joined' : 'Pending Invite')}
               </span>
             </div>
           </div>
           {hasCounterpartyJoined ? (
             <span className="text-[11px] font-semibold text-emerald-700 flex items-center space-x-1">
               <ShieldCheck className="w-4 h-4" />
-              <span>Joined Room</span>
+              <span>Joined</span>
             </span>
           ) : (
             <button
@@ -871,6 +917,42 @@ export default function DealWorkspacePage() {
               className="text-xs text-blue-600 hover:underline font-semibold"
             >
               Send Invite Link
+            </button>
+          )}
+        </div>
+
+        {/* Legal Counsel Card */}
+        <div className="p-4 bg-white rounded-lg border border-purple-100 shadow-sm flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-800 flex items-center justify-center font-bold text-xs">
+              <Scale className="w-4 h-4 text-purple-700" />
+            </div>
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700 block">
+                Legal Counsel
+              </span>
+              <span className="text-xs font-bold text-slate-900 block truncate max-w-[120px]">
+                {lawyerParticipant?.full_name || lawyerParticipant?.email || (hasLawyerJoined ? 'Counsel Assigned' : 'Independent Review')}
+              </span>
+            </div>
+          </div>
+          {hasLawyerJoined ? (
+            <button
+              onClick={() => {
+                setActiveTab('agreement');
+                setAgreementSubView('lawyer_review');
+              }}
+              className="text-[11px] font-semibold text-purple-700 flex items-center space-x-1 hover:underline"
+            >
+              <ShieldCheck className="w-4 h-4 text-purple-600" />
+              <span>Reviewing</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowInviteLawyerModal(true)}
+              className="text-xs text-purple-700 hover:underline font-semibold"
+            >
+              Invite Lawyer
             </button>
           )}
         </div>
@@ -1579,13 +1661,93 @@ export default function DealWorkspacePage() {
       {/* ========================================================= */}
       {activeTab === 'agreement' && (
         <div className="space-y-6">
-          {!currentVersion ? (
-            <div className="p-12 text-center bg-white rounded-lg border border-slate-200">
-              <FileText className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-              <h3 className="text-sm font-bold text-slate-800">No Agreement Version Generated Yet</h3>
-              <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-                Review your extracted terms in the Extracted Terms tab and click 'Generate Plain-Language Agreement'.
-              </p>
+          {/* Lawyer review banner */}
+          {isLawyer && (
+            <div className="p-3.5 bg-purple-900 text-white rounded-lg flex items-center justify-between shadow-sm">
+              <div className="flex items-center space-x-2 text-xs">
+                <Scale className="w-4 h-4 text-purple-300 shrink-0" />
+                <span>
+                  <strong>Independent Legal Counsel Mode:</strong> You are authorized to review this commercial agreement draft, suggest clause amendments with statutory explanations, and provide guidance to the parties.
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Sub-navigation Tabs for Agreement */}
+          <div className="flex items-center space-x-2 bg-slate-100 p-1 rounded-xl self-start">
+            <button
+              id="subtab-draft"
+              type="button"
+              onClick={() => setAgreementSubView('draft')}
+              className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 ${
+                agreementSubView === 'draft'
+                  ? 'bg-white text-navy-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>📄 Agreement Draft {currentVersion && `(v${currentVersion.version_number}.0)`}</span>
+            </button>
+
+            <button
+              id="subtab-assistance"
+              type="button"
+              onClick={() => setAgreementSubView('assistance')}
+              className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 ${
+                agreementSubView === 'assistance'
+                  ? 'bg-white text-navy-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+              <span>💡 Agreement Assistance</span>
+            </button>
+
+            <button
+              id="subtab-lawyer-review"
+              type="button"
+              onClick={() => setAgreementSubView('lawyer_review')}
+              className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 ${
+                agreementSubView === 'lawyer_review'
+                  ? 'bg-white text-navy-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Scale className="w-3.5 h-3.5 text-purple-600" />
+              <span>⚖️ Lawyer Review</span>
+            </button>
+          </div>
+
+          {/* SUB-VIEW 1: AGREEMENT ASSISTANCE */}
+          {agreementSubView === 'assistance' && (
+            <AgreementAssistancePanel
+              dealId={dealId}
+              currentVersion={currentVersion}
+              onDraftUpdated={handleDraftUpdated}
+            />
+          )}
+
+          {/* SUB-VIEW 2: LAWYER REVIEW */}
+          {agreementSubView === 'lawyer_review' && (
+            <LawyerReviewPanel
+              dealId={dealId}
+              isOwner={isCreator}
+              isLawyer={isLawyer}
+              onOpenInviteModal={() => setShowInviteLawyerModal(true)}
+              onDraftUpdated={handleDraftUpdated}
+            />
+          )}
+
+          {/* SUB-VIEW 3: AGREEMENT DRAFT */}
+          {agreementSubView === 'draft' && (
+            <>
+              {!currentVersion ? (
+                <div className="p-12 text-center bg-white rounded-lg border border-slate-200">
+                  <FileText className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                  <h3 className="text-sm font-bold text-slate-800">No Agreement Version Generated Yet</h3>
+                  <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                    Review your extracted terms in the Extracted Terms tab and click 'Generate Plain-Language Agreement'.
+                  </p>
               <button
                 onClick={handleGenerateAgreement}
                 className="mt-4 px-4 py-2 bg-navy-900 text-white text-xs font-semibold rounded-md shadow-sm"
@@ -2093,8 +2255,10 @@ export default function DealWorkspacePage() {
               </div>
             </div>
           )}
-        </div>
+        </>
       )}
+    </div>
+  )}
 
       {/* ========================================================= */}
       {/* TAB 4: AMENDMENTS (PROPOSE & SIDE-BY-SIDE REVIEW)          */}
@@ -2334,6 +2498,16 @@ export default function DealWorkspacePage() {
         dealId={deal.id}
         dealTitle={deal.title}
         creatorName={user?.user_metadata?.full_name || user?.email}
+      />
+
+      {/* Invite Real Lawyer Modal */}
+      <InviteLawyerModal
+        isOpen={showInviteLawyerModal}
+        onClose={() => setShowInviteLawyerModal(false)}
+        dealId={deal.id}
+        dealTitle={deal.title}
+        creatorName={creator?.full_name || deal.creator_name || user?.user_metadata?.full_name || user?.email}
+        onInvited={loadDealData}
       />
 
       {/* Immediate AI Detector Alert Modal */}

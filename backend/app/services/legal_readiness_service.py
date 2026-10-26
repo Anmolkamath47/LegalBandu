@@ -353,6 +353,138 @@ def verify_stamp_certificate_data(
 
 LAWYER_APPROVED_TEMPLATES = [
     {
+        "template_id": "general_agreement_template",
+        "title": "General Agreement Template - for completion by the parties",
+        "category": "General Commercial / Bilateral Agreement",
+        "jurisdiction": "Bengaluru, Karnataka (Laws of India)",
+        "legal_basis": "Indian Contract Act, 1872 & State Stamp Law",
+        "summary": "Official bilateral general agreement template with structured clauses for consideration, obligations, termination, liquidated damages, arbitration, and witness attestation.",
+        "key_clauses": [
+            "Preamble & Parties Legal Identity (Sec 10 & 11 ICA)",
+            "Recitals A, B, C (Lawful Object & Intent)",
+            "1. Definitions and Interpretation",
+            "2. Scope and Purpose",
+            "3. Rights and Obligations",
+            "4. Term and Renewal",
+            "5. Consideration, Milestones, Mode, Taxes (GST/TDS) and Late Payment",
+            "6. Representations and Warranties",
+            "7. Termination Notice & Cure Opportunity",
+            "8. Breach and Section 74 ICA Liquidated Damages",
+            "9. Confidentiality Survival",
+            "10. Force Majeure",
+            "11. Governing Law & Arbitration (Arbitration & Conciliation Act, 1996)",
+            "12. Notices",
+            "13. General (Entire Agreement, Stamp Duty Allocation)",
+            "Attesting Witnesses & Authorized Signatures",
+        ],
+        "default_text": """AGREEMENT
+(General Agreement Template - for completion by the parties)
+
+Important: This is an unsigned draft template with placeholders in [SQUARE BRACKETS]. It is not a government-issued or government-approved form. It becomes a binding, enforceable document only if it is completed accurately, properly stamped under the applicable State stamp law, executed by the parties, and (where the law requires) registered. Have it reviewed by a licensed advocate before signing. Delete this box before execution.
+
+Reference No.: LB-[REFERENCE NUMBER]
+Date of Execution: {date}
+Place of Execution: Bengaluru, Karnataka
+
+THIS AGREEMENT is made at Bengaluru, Karnataka on {date} BETWEEN:
+
+(1) {party_a_name}, [individual / company incorporated under the Companies Act, 2013 / LLP / partnership firm], son/daughter/spouse of [NAME] (for individuals), aged [AGE], residing / having its registered office at [FULL ADDRESS], PAN [PAN], Contact: [PHONE / EMAIL] (hereinafter the "First Party", which expression shall include legal heirs, successors and permitted assigns);
+
+AND
+
+(2) {party_b_name}, [individual / company / LLP / partnership firm], son/daughter/spouse of [NAME] (for individuals), aged [AGE], residing / having its registered office at [FULL ADDRESS], PAN [PAN], Contact: [PHONE / EMAIL] (hereinafter the "Second Party", which expression shall include legal heirs, successors and permitted assigns).
+
+The First Party and the Second Party are together the "Parties" and individually a "Party".
+
+RECITALS
+A. [BACKGROUND OF THE FIRST PARTY AND ITS RELEVANT BUSINESS / CAPACITY].
+B. [BACKGROUND OF THE SECOND PARTY].
+C. The Parties wish to record the terms on which they will [PURPOSE OF THE AGREEMENT].
+
+NOW, THEREFORE, the Parties agree as follows:
+
+1. Definitions and Interpretation
+"Effective Date" means {date}. "Term" has the meaning in Clause 4. "Scope" means the matters described in Clause 2. Headings are for convenience only. References to clauses are to clauses of this Agreement.
+
+2. Scope and Purpose
+The Parties agree to {work_scope}.
+
+3. Rights and Obligations
+3.1 The First Party shall: {responsibilities}.
+3.2 The Second Party shall: cooperate in good faith and provide required inputs, review milestones, and disburse payments.
+3.3 Each Party shall act in good faith and cooperate to give effect to this Agreement.
+
+4. Term
+This Agreement commences on {date} and, unless terminated earlier under Clause 7, continues until {timeline}. [Renewal: describe, or state "None"].
+
+5. Consideration and Payment
+5.1 Total consideration / fee: Rs. {financial_terms} (in {currency}).
+5.2 Payment schedule: [INSTALMENTS / DATES / MILESTONES].
+5.3 Mode of payment: [BANK TRANSFER / CHEQUE / OTHER], to [ACCOUNT DETAILS OR PAYEE].
+5.4 Taxes: [STATE WHO BEARS GST, TDS AND OTHER TAXES].
+5.5 Late payment: [INTEREST / CONSEQUENCE, OR "None"].
+
+6. Representations and Warranties
+Each Party represents that (a) it has full legal capacity and authority to enter into this Agreement; (b) the information it has provided is true and complete; and (c) entering into this Agreement does not breach any law or other agreement binding on it.
+
+7. Termination
+7.1 Either Party may terminate by giving [NUMBER] days' written notice.
+7.2 Either Party may terminate immediately by written notice if the other commits a material breach and fails to cure it within [NUMBER] days of written notice.
+7.3 Termination does not affect rights accrued before termination or clauses intended to survive (including Clauses 8, 9, 11 and 12).
+
+8. Breach and Remedies
+A Party in breach shall compensate the other for loss that naturally arises from the breach, subject to Section 74 of the Indian Contract Act, 1872. [Optional: agreed liquidated damages of Rs. [AMOUNT], being a genuine pre-estimate of loss].
+
+9. Confidentiality
+Each Party shall keep confidential all non-public information received from the other and use it only for this Agreement, except where disclosure is required by law or a court. This obligation continues for [NUMBER] years after the Term. [Delete if not required].
+
+10. Force Majeure
+Neither Party is liable for delay or failure caused by events beyond its reasonable control, including natural disasters, war, epidemic, or government orders, provided it gives prompt written notice and uses reasonable efforts to resume performance. If the event continues beyond [NUMBER] days, either Party may terminate on written notice.
+
+11. Governing Law and Dispute Resolution
+11.1 This Agreement is governed by the laws of India and, as applicable, the State of Karnataka.
+11.2 The Parties shall first try to resolve any dispute by good-faith negotiation for [NUMBER] days.
+11.3 Failing that, the dispute shall be referred to arbitration by a sole arbitrator appointed by mutual consent under the Arbitration and Conciliation Act, 1996, seat Bengaluru, language English.
+11.4 Courts at Bengaluru shall have exclusive jurisdiction, subject to Clause 11.3.
+
+12. Notices
+Notices shall be in writing and delivered by hand, registered post or email to the addresses stated above (or as later notified). Notice is deemed received on delivery / [NUMBER] days after posting / on sending, if email sent before 6 pm on a working day.
+
+13. General
+13.1 Entire agreement: this Agreement is the whole agreement and supersede prior understandings on the same subject.
+13.2 Amendment: only by a written document signed by both Parties.
+13.3 Assignment: neither Party may assign without the other's written consent.
+13.4 Severability: if any provision is held invalid, the rest remains in force.
+13.5 Waiver: failure to enforce a right is not a waiver of it.
+13.6 Counterparts: this Agreement may be signed in counterparts, each being an original.
+13.7 Stamp duty: stamp duty and registration charges (if any) shall be borne by [PARTY / EQUALLY].
+
+IN WITNESS WHEREOF the Parties have signed this Agreement on the date first written above.
+
+FIRST PARTY
+Signature: ____________________
+Name: {party_a_name}
+Designation (if entity): [TITLE]
+Date: {date}
+
+SECOND PARTY
+Signature: ____________________
+Name: {party_b_name}
+Designation (if entity): [TITLE]
+Date: {date}
+
+WITNESSES
+1. Signature: ______________________
+Name: [NAME]
+Address: [ADDRESS]
+ID proof / No.: [ID]
+
+2. Signature: ______________________
+Name: [NAME]
+Address: [ADDRESS]
+ID proof / No.: [ID]""",
+    },
+    {
         "template_id": "karnataka_commercial_service",
         "title": "Commercial Services & Deliverables Agreement",
         "category": "Services / Development / Consulting",

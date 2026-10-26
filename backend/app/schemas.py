@@ -126,6 +126,11 @@ class InvitationInfo(BaseModel):
     is_expired: bool
     is_already_accepted: bool
     invitation_email: Optional[str] = None
+    role: str = "counterparty"
+
+
+class InvitationDeclineRequest(BaseModel):
+    reason: Optional[str] = None
 
 
 # ==========================================
@@ -550,5 +555,107 @@ class VerifyStampCertificateRequest(BaseModel):
 
 class ApplyTemplateRequest(BaseModel):
     template_id: str
+
+
+# ==========================================
+# Lawyer Reviews & Suggestions
+# ==========================================
+class LawyerInviteCreate(BaseModel):
+    email: Optional[EmailStr] = None
+    expires_in_days: int = Field(default=7, ge=1, le=60)
+
+
+class LawyerSuggestionCreate(BaseModel):
+    clause_reference: str = Field(..., min_length=2)
+    original_text: str = ""
+    suggested_text: str = Field(..., min_length=3)
+    explanation: str = Field(..., min_length=5)
+
+
+class LawyerSuggestionDecision(BaseModel):
+    decision: str  # "accepted" or "rejected"
+    rejection_reason: Optional[str] = None
+    apply_to_draft: bool = True
+
+
+class LawyerDiscussionMessage(BaseModel):
+    message: str = Field(..., min_length=1)
+
+
+class LawyerReviewStatusUpdate(BaseModel):
+    status: str  # "in_review", "changes_recommended", "approved"
+    overall_notes: Optional[str] = None
+
+
+class LawyerSuggestionOut(BaseModel):
+    id: StrId
+    deal_id: StrId
+    review_id: Optional[StrId] = None
+    lawyer_id: StrId
+    lawyer_name: Optional[str] = None
+    clause_reference: str
+    original_text: str
+    suggested_text: str
+    explanation: str
+    status: str
+    rejection_reason: Optional[str] = None
+    discussion_notes: List[Dict[str, Any]] = []
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class LawyerReviewOut(BaseModel):
+    id: StrId
+    deal_id: StrId
+    lawyer_id: Optional[StrId] = None
+    lawyer_name: Optional[str] = None
+    invitation_email: Optional[str] = None
+    status: str
+    decline_reason: Optional[str] = None
+    overall_notes: Optional[str] = None
+    suggestions: List[LawyerSuggestionOut] = []
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ==========================================
+# Agreement Assistance
+# ==========================================
+class AssistanceTopicOut(BaseModel):
+    topic_id: str
+    title: str
+    clause_ref: str
+    placeholders: List[str]
+    questions: List[str]
+    importance: str
+    fields: List[Dict[str, Any]]
+    status: str  # "pending", "in_discussion", "discussed"
+    answers: Dict[str, Any] = {}
+    notes: Optional[str] = None
+    is_complete: bool
+
+
+class AssistanceReportOut(BaseModel):
+    deal_id: StrId
+    total_topics: int
+    discussed_topics: int
+    pending_topics: int
+    completion_percentage: float
+    missing_placeholders: List[str]
+    topics: List[AssistanceTopicOut]
+
+
+class AssistanceTopicAnswerRequest(BaseModel):
+    status: Optional[str] = None  # "pending", "in_discussion", "discussed"
+    answers: Optional[Dict[str, Any]] = None
+    notes: Optional[str] = None
+
+
+class AssistanceApplyRequest(BaseModel):
+    create_new_version: bool = True
 
 

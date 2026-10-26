@@ -126,6 +126,7 @@ def init_db():
                     conn.execute(text("ALTER TABLE amendments DROP CONSTRAINT IF EXISTS amendments_proposed_by_fkey;"))
                     conn.execute(text("ALTER TABLE activity_logs DROP CONSTRAINT IF EXISTS activity_logs_actor_id_fkey;"))
                     conn.execute(text("ALTER TABLE notifications DROP CONSTRAINT IF EXISTS notifications_user_id_fkey;"))
+                    conn.execute(text("ALTER TABLE deal_participants DROP CONSTRAINT IF EXISTS deal_participants_role_check;"))
                     conn.commit()
         except Exception as mig_err:
             logger.debug(f"Column check notice: {mig_err}")

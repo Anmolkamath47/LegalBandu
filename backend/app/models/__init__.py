@@ -18,6 +18,9 @@ from .models import (
     StatutoryExclusion,
     InstrumentComplianceRecord,
     CustomsEBondRecord,
+    LawyerReview,
+    LawyerSuggestion,
+    AgreementAssistanceRecord,
 )
 
 __all__ = [
@@ -40,4 +43,7 @@ __all__ = [
     "StatutoryExclusion",
     "InstrumentComplianceRecord",
     "CustomsEBondRecord",
+    "LawyerReview",
+    "LawyerSuggestion",
+    "AgreementAssistanceRecord",
 ]

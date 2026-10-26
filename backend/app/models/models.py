@@ -111,6 +111,15 @@ class Deal(Base):
     customs_bonds = relationship(
         "CustomsEBondRecord", back_populates="deal", cascade="all, delete-orphan"
     )
+    lawyer_reviews = relationship(
+        "LawyerReview", back_populates="deal", cascade="all, delete-orphan"
+    )
+    lawyer_suggestions = relationship(
+        "LawyerSuggestion", back_populates="deal", cascade="all, delete-orphan"
+    )
+    assistance_records = relationship(
+        "AgreementAssistanceRecord", back_populates="deal", cascade="all, delete-orphan"
+    )
 
 
 class DealParticipant(Base):
@@ -575,3 +584,86 @@ class CustomsEBondRecord(Base):
     updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
     deal = relationship("Deal", back_populates="customs_bonds")
+
+
+class LawyerReview(Base):
+    __tablename__ = "lawyer_reviews"
+
+    id = Column(String(36), primary_key=True, default=gen_uuid)
+    deal_id = Column(
+        GUID(),
+        ForeignKey("deals.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    lawyer_id = Column(String(36), nullable=True, index=True)
+    invitation_email = Column(String(255), nullable=True)
+    invitation_token_hash = Column(String(64), nullable=True, index=True)
+    invitation_expires_at = Column(DateTime(timezone=True), nullable=True)
+    status = Column(
+        String(50), nullable=False, default="invite_sent"
+    )  # invite_sent, in_review, changes_recommended, approved, declined
+    decline_reason = Column(Text, nullable=True)
+    overall_notes = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+    deal = relationship("Deal", back_populates="lawyer_reviews")
+    suggestions = relationship(
+        "LawyerSuggestion", back_populates="review", cascade="all, delete-orphan"
+    )
+
+
+class LawyerSuggestion(Base):
+    __tablename__ = "lawyer_suggestions"
+
+    id = Column(String(36), primary_key=True, default=gen_uuid)
+    deal_id = Column(
+        GUID(),
+        ForeignKey("deals.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    review_id = Column(
+        String(36),
+        ForeignKey("lawyer_reviews.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    lawyer_id = Column(String(36), nullable=False, index=True)
+    clause_reference = Column(String(150), nullable=False)
+    original_text = Column(Text, nullable=False, default="")
+    suggested_text = Column(Text, nullable=False)
+    explanation = Column(Text, nullable=False)
+    status = Column(
+        String(50), nullable=False, default="pending"
+    )  # pending, accepted, rejected
+    rejection_reason = Column(Text, nullable=True)
+    discussion_notes = Column(JSON, nullable=False, default=list)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+    deal = relationship("Deal", back_populates="lawyer_suggestions")
+    review = relationship("LawyerReview", back_populates="suggestions")
+
+
+class AgreementAssistanceRecord(Base):
+    __tablename__ = "agreement_assistance_records"
+
+    id = Column(String(36), primary_key=True, default=gen_uuid)
+    deal_id = Column(
+        GUID(),
+        ForeignKey("deals.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    topic_id = Column(String(100), nullable=False, index=True)
+    status = Column(
+        String(50), nullable=False, default="pending"
+    )  # pending, in_discussion, discussed
+    answers = Column(JSON, nullable=False, default=dict)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+    deal = relationship("Deal", back_populates="assistance_records")
