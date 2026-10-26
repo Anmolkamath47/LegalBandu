@@ -25,7 +25,8 @@ import {
   ShieldAlert,
   FileCheck2,
   PenTool,
-  Image as ImageIcon
+  Image as ImageIcon,
+  ChevronRight,
 } from 'lucide-react';
 import InviteModal from '../components/InviteModal';
 import AIDetectorAlertModal from '../components/AIDetectorAlertModal';
