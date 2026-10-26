@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import NotificationsMenu from './NotificationsMenu';
 
-export default function Navbar({ onOpenNewDeal, onOpenAuth, onOpenProfile, onOpenAdminAuth }) {
+export default function Navbar({ onOpenNewDeal, onOpenAuth, onOpenProfile }) {
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -56,14 +56,6 @@ export default function Navbar({ onOpenNewDeal, onOpenAuth, onOpenProfile, onOpe
               >
                 My Deals
               </Link>
-              <button
-                onClick={onOpenAdminAuth}
-                className="px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:text-navy-900 hover:bg-slate-50 transition-colors flex items-center space-x-1.5"
-                title="View Government Integrations & Statutory Exclusions"
-              >
-                <span className="w-2 h-2 rounded-full bg-blue-600" />
-                <span>Government Integrations Register</span>
-              </button>
             </nav>
           )}
 

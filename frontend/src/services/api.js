@@ -247,5 +247,29 @@ export const api = {
     method: 'POST',
     body: JSON.stringify(payload),
   }),
+
+  // Legal Readiness, CCA eSign, Karnataka Stamp Duty & Approved Templates
+  getESignProviders: () => request('/compliance/esign-providers'),
+  calculateStampDuty: (params) => {
+    const q = new URLSearchParams();
+    if (params.state) q.set('state', params.state);
+    if (params.instrument_type) q.set('instrument_type', params.instrument_type);
+    if (params.consideration_amount) q.set('consideration_amount', params.consideration_amount);
+    if (params.is_bond) q.set('is_bond', 'true');
+    if (params.is_indemnity) q.set('is_indemnity', 'true');
+    return request(`/compliance/stamp-duty/calculate?${q.toString()}`);
+  },
+  verifyStampDutyCertificate: (payload) => request('/compliance/stamp-duty/verify', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }),
+  getLawyerApprovedTemplates: () => request('/compliance/templates'),
+  applyLawyerTemplate: (dealId, templateId) => request(`/deals/${dealId}/apply-template`, {
+    method: 'POST',
+    body: JSON.stringify({ template_id: templateId }),
+  }),
+  getDealReadinessChecklist: (dealId) => request(`/deals/${dealId}/readiness-checklist`),
+  getDealAuditCertificate: (dealId) => request(`/deals/${dealId}/audit-certificate`),
 };
+
 

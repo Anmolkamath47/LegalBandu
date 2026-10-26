@@ -538,3 +538,17 @@ class CustomsEBondStepRequest(BaseModel):
     step_num: int
     step_data: Dict[str, Any] = {}
 
+
+class VerifyStampCertificateRequest(BaseModel):
+    certificate_number: str
+    grn: Optional[str] = None
+    amount_paid: float = 500.0
+    state: str = "Karnataka"
+    party_a: Optional[str] = ""
+    party_b: Optional[str] = ""
+
+
+class ApplyTemplateRequest(BaseModel):
+    template_id: str
+
+

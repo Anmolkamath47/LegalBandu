@@ -113,12 +113,56 @@ def build_version_out(
         and all(p.id in approved_part_ids for p in participants)
     )
 
+    # Ensure agreement_text is never empty
+    agreement_text = version.agreement_text or ""
+    if not agreement_text.strip():
+        aj = version.agreement_json or {}
+        all_participants = db.query(DealParticipant).filter(DealParticipant.deal_id == deal.id).all()
+        party_a_name = "Party A"
+        party_b_name = "Party B"
+        if deal.creator_id:
+            creator_prof = db.query(Profile).filter(Profile.id == deal.creator_id).first()
+            if creator_prof and creator_prof.full_name:
+                party_a_name = creator_prof.full_name
+        for p in all_participants:
+            name = None
+            if p.user_id:
+                prof = db.query(Profile).filter(Profile.id == p.user_id).first()
+                name = (prof.full_name if prof else None) or p.invitation_email
+            else:
+                name = p.invitation_email
+            if p.role == "creator" and name:
+                party_a_name = name
+            elif p.role == "counterparty" and name:
+                party_b_name = name
+
+        try:
+            agreement_text = generate_agreement_text(
+                deal_title=deal.title,
+                deal_id=str(deal.id),
+                category=deal.category or "Services",
+                currency=deal.currency or "INR",
+                party_a_name=party_a_name,
+                party_b_name=party_b_name,
+                work_scope=aj.get("work_scope") or deal.description or "Scope of deliverables as agreed between the Parties.",
+                financial_terms=aj.get("financial_terms") or f"Agreed consideration in {deal.currency} as per mutual terms.",
+                timeline=aj.get("timeline") or "As mutually agreed in writing by the Parties.",
+                responsibilities=aj.get("responsibilities") or "Both Parties shall discharge their obligations in good faith and with professional diligence.",
+                delivery_acceptance=aj.get("delivery_acceptance") or "",
+                cancellation_refunds=aj.get("cancellation_refunds") or "",
+                warranty_revisions=aj.get("warranty_revisions") or "",
+            )
+            version.agreement_text = agreement_text
+            db.commit()
+        except Exception:
+            pass
+
     return AgreementVersionOut(
         id=version.id,
         deal_id=version.deal_id,
         version_number=version.version_number,
         agreement_json=version.agreement_json,
-        agreement_text=version.agreement_text,
+        agreement_text=agreement_text,
         created_by=version.created_by,
         created_by_name=creator_name,
         created_at=version.created_at,
@@ -332,7 +376,7 @@ def edit_agreement(
         deal_id=deal.id,
         version_number=new_v_num,
         agreement_json=data.agreement_json,
-        agreement_text=data.agreement_text,
+        agreement_text=data.agreement_text or old_version.agreement_text or "",
         created_by=current_user.id,
     )
     db.add(new_version)

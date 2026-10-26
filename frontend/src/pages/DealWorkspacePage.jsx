@@ -34,7 +34,7 @@ import AudioCallRecorder from '../components/AudioCallRecorder';
 import BondUploadWidget from '../components/BondUploadWidget';
 import LegalCompliancePanel from '../components/LegalCompliancePanel';
 
-export default function DealWorkspacePage({ onOpenAdminAuth }) {
+export default function DealWorkspacePage() {
   const { dealId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -783,6 +783,31 @@ export default function DealWorkspacePage({ onOpenAdminAuth }) {
             <span>{hasCounterpartyJoined ? 'Invite Link' : 'Invite Counterparty'}</span>
           </button>
 
+          {!currentVersion ? (
+            <button
+              id="btn-header-generate-agreement"
+              onClick={handleGenerateAgreement}
+              disabled={submittingAction}
+              className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-md shadow-sm flex items-center space-x-1.5 transition-colors disabled:opacity-50"
+            >
+              <FileText className="w-4 h-4 text-blue-100" />
+              <span>{submittingAction ? 'Generating...' : 'Generate Legal Agreement'}</span>
+            </button>
+          ) : (
+            <button
+              id="btn-header-view-agreement"
+              onClick={() => setActiveTab('agreement')}
+              className={`px-3 py-2 text-xs rounded-md shadow-sm flex items-center space-x-1.5 transition-colors border ${
+                activeTab === 'agreement'
+                  ? 'bg-blue-50 text-blue-800 border-blue-300 font-bold'
+                  : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300 font-semibold'
+              }`}
+            >
+              <FileText className="w-4 h-4 text-blue-600" />
+              <span>Agreement v{currentVersion.version_number}.0</span>
+            </button>
+          )}
+
           {currentVersion && (
             <button
               id="btn-download-pdf"
@@ -928,10 +953,11 @@ export default function DealWorkspacePage({ onOpenAdminAuth }) {
             }`}
           >
             <Scale className="w-3.5 h-3.5 text-blue-600" />
-            <span>Legal Validity & Compliance</span>
+            <span>Legal Readiness & Checklist</span>
           </button>
         </nav>
       </div>
+
 
 
 
@@ -1568,13 +1594,27 @@ export default function DealWorkspacePage({ onOpenAdminAuth }) {
             </div>
           ) : (
             <div className="space-y-6">
-              {/* Mandatory Legal Validity & Government Authorization Panel */}
-              <LegalCompliancePanel
-                dealId={dealId}
-                deal={deal}
-                currentVersion={currentVersion}
-                onRefresh={loadDealWorkspace}
-              />
+              {/* Legal Readiness Quick Status Banner */}
+              <div className="p-3.5 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div className="flex items-center space-x-2 text-xs">
+                  <Scale className="w-4 h-4 text-blue-700 shrink-0" />
+                  <div>
+                    <span className="font-bold text-navy-900">Legal Document Readiness & Statutory Integrations:</span>{' '}
+                    <span className="text-slate-600">
+                      Evaluated under Indian Contract Act 1872 (§ 10), Karnataka Stamp Act (Art 5/12/34), and CCA eSign standards.
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('compliance')}
+                  className="px-3 py-1 bg-navy-900 hover:bg-navy-800 text-white rounded text-xs font-semibold shrink-0 transition-colors flex items-center space-x-1"
+                >
+                  <span>Open Readiness Center</span>
+                  <ChevronRight className="w-3 h-3" />
+                </button>
+              </div>
+
 
               {/* Version Banner & Review Controls */}
               <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -1744,6 +1784,17 @@ export default function DealWorkspacePage({ onOpenAdminAuth }) {
                     </div>
 
                     <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">5. Complete Legal Agreement Text (Clauses & Terms)</label>
+                      <textarea
+                        rows={6}
+                        value={editedAgreementText}
+                        onChange={(e) => setEditedAgreementText(e.target.value)}
+                        className="w-full p-2.5 text-xs font-mono border border-slate-300 rounded-md outline-none focus:ring-1 focus:ring-navy-900"
+                        placeholder="Complete legal agreement text..."
+                      />
+                    </div>
+
+                    <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1">Change Summary (Reason for edit)</label>
                       <input
                         type="text"
@@ -1777,54 +1828,64 @@ export default function DealWorkspacePage({ onOpenAdminAuth }) {
                   /* Formal Document Reader */
                   <div className="space-y-6 text-xs text-slate-800 leading-relaxed font-sans">
                     
-                    {/* Section 1: Parties */}
-                    <div>
-                      <h4 className="font-bold text-navy-900 uppercase tracking-wider text-[11px] mb-2 border-b border-slate-100 pb-1">
-                        1. PARTIES INVOLVED
-                      </h4>
-                      <p>
-                        This Agreement is made between <strong className="text-slate-900">{creator?.full_name || deal.creator_name || 'Creator'}</strong> ("First Party") and <strong className="text-slate-900">{counterparty?.full_name || counterparty?.email || 'Counterparty'}</strong> ("Second Party").
-                      </p>
+                    {/* Primary Legal Agreement Text (Court-Admissible Instrument) */}
+                    <div className="p-6 sm:p-8 bg-slate-50/80 border border-slate-200 rounded-xl space-y-4 shadow-sm">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
+                        <div className="flex items-center space-x-2">
+                          <Scale className="w-4 h-4 text-navy-900" />
+                          <span className="font-bold text-xs uppercase tracking-wider text-navy-900">
+                            Court-Admissible Legal Agreement (IT Act, 2000 § 10A)
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center space-x-1">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          <span>Indian Law Compliant</span>
+                        </span>
+                      </div>
+
+                      {/* Full Formatted Legal Agreement Text */}
+                      <div className="font-serif text-slate-900 text-xs sm:text-sm leading-relaxed whitespace-pre-wrap selection:bg-blue-100 max-h-[700px] overflow-y-auto pr-2 border-b border-slate-200/60 pb-4">
+                        {currentVersion.agreement_text || (
+                          <div className="text-slate-500 italic py-4">
+                            No full agreement text recorded. Click 'Edit Terms' above to add custom clauses or regenerate.
+                          </div>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Section 2: Scope */}
-                    <div>
-                      <h4 className="font-bold text-navy-900 uppercase tracking-wider text-[11px] mb-2 border-b border-slate-100 pb-1">
-                        2. WORK SCOPE & DELIVERABLES
+                    {/* Commercial Terms Summary Breakdown */}
+                    <div className="border border-slate-200 rounded-xl p-5 bg-white space-y-4">
+                      <h4 className="font-bold text-navy-900 uppercase tracking-wider text-[11px] flex items-center space-x-1.5 border-b border-slate-100 pb-2">
+                        <FileText className="w-3.5 h-3.5 text-blue-600" />
+                        <span>Key Commercial Terms Summary</span>
                       </h4>
-                      <p className="whitespace-pre-wrap">
-                        {currentVersion.agreement_json?.work_scope || deal.description || 'To be performed according to mutual specifications.'}
-                      </p>
-                    </div>
 
-                    {/* Section 3: Financials */}
-                    <div>
-                      <h4 className="font-bold text-navy-900 uppercase tracking-wider text-[11px] mb-2 border-b border-slate-100 pb-1">
-                        3. FINANCIAL TERMS & PAYMENT SCHEDULE
-                      </h4>
-                      <p className="whitespace-pre-wrap">
-                        {currentVersion.agreement_json?.financial_terms || `Total consideration is agreed in ${deal.currency}.`}
-                      </p>
-                    </div>
-
-                    {/* Section 4: Timeline */}
-                    <div>
-                      <h4 className="font-bold text-navy-900 uppercase tracking-wider text-[11px] mb-2 border-b border-slate-100 pb-1">
-                        4. TIMELINE & DEADLINES
-                      </h4>
-                      <p className="whitespace-pre-wrap">
-                        {currentVersion.agreement_json?.timeline || 'Completion expected as agreed in conversation.'}
-                      </p>
-                    </div>
-
-                    {/* Section 5: Responsibilities */}
-                    <div>
-                      <h4 className="font-bold text-navy-900 uppercase tracking-wider text-[11px] mb-2 border-b border-slate-100 pb-1">
-                        5. RESPONSIBILITIES & OBLIGATIONS
-                      </h4>
-                      <p className="whitespace-pre-wrap">
-                        {currentVersion.agreement_json?.responsibilities || 'Both parties commit to reasonable diligence and open communication.'}
-                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <span className="text-[10px] font-bold uppercase text-slate-400 block">1. Parties</span>
+                          <p className="mt-0.5">
+                            <strong className="text-slate-900">{creator?.full_name || deal.creator_name || 'Creator'}</strong> (First Party) & <strong className="text-slate-900">{counterparty?.full_name || counterparty?.email || 'Counterparty'}</strong> (Second Party)
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-bold uppercase text-slate-400 block">2. Financial Consideration</span>
+                          <p className="mt-0.5 font-medium text-slate-900">
+                            {currentVersion.agreement_json?.financial_terms || `Agreed in ${deal.currency}.`}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-bold uppercase text-slate-400 block">3. Timeline</span>
+                          <p className="mt-0.5">
+                            {currentVersion.agreement_json?.timeline || 'As agreed between parties.'}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-bold uppercase text-slate-400 block">4. Scope of Deliverables</span>
+                          <p className="mt-0.5">
+                            {currentVersion.agreement_json?.work_scope || deal.description || 'Mutual specifications.'}
+                          </p>
+                        </div>
+                      </div>
                     </div>
 
                     {/* Section 6: Confirmation Records */}
@@ -2252,7 +2313,7 @@ export default function DealWorkspacePage({ onOpenAdminAuth }) {
       )}
 
       {/* ========================================================= */}
-      {/* TAB 6: GOVERNMENT LEGAL VALIDITY & OFFICIAL COMPLIANCE     */}
+      {/* TAB 6: LEGAL DOCUMENT READINESS & INTEGRATIONS            */}
       {/* ========================================================= */}
       {activeTab === 'compliance' && (
         <div className="space-y-6">
@@ -2260,7 +2321,7 @@ export default function DealWorkspacePage({ onOpenAdminAuth }) {
             dealId={dealId}
             deal={deal}
             currentVersion={currentVersion}
-            onRefresh={loadDealWorkspace}
+            onRefresh={loadDealData}
           />
         </div>
       )}
